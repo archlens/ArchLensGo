@@ -9,10 +9,11 @@
     "views": {
         "completeView": {
             "include": [
-                "this"
+                "**/*.go"
             ],
             "exclude": [
-                "that"
+                "**/go.sum",
+                "**/go.mod"
             ]
         }
     }

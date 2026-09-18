@@ -2,7 +2,10 @@ package input
 
 import (
 	"encoding/json"
+	"maps"
 	"os"
+	"path/filepath"
+	"slices"
 )
 
 type View struct {
@@ -36,4 +39,34 @@ func Load(path string) (*Input, error) {
 		return nil, err
 	}
 	return input, nil
+}
+
+func matchFiles(patterns []string) (map[string]struct{}, error) {
+	files := make(map[string]struct{})
+	for _, pattern := range patterns {
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			return files, err
+		}
+		for _, match := range matches {
+			files[match] = struct{}{}
+		}
+	}
+	return files, nil
+}
+
+func GetFiles(view *View) ([]string, error) {
+	include, err := matchFiles(view.Include)
+	if err != nil {
+		return []string{}, err
+	}
+	exclude, err := matchFiles(view.Exclude)
+	if err != nil {
+		return []string{}, err
+	}
+	
+	for path, _ := range exclude {
+		delete(include, path)
+	}
+	return slices.Collect(maps.Keys(include)), nil
 }
