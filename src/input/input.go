@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+
+	"github.com/archlens/ArchLens/utils"
 )
 
 type View struct {
@@ -56,10 +58,8 @@ func matchFiles(patterns []string) (map[string]struct{}, error) {
 }
 
 func GetFiles(view *View, rootDir string) ([]string, error) {
-	err := os.Chdir(rootDir)
-	if err != nil {
-		return []string{}, err
-	}
+	restore := utils.WithWorkingDirectory(rootDir)
+	defer restore()
 
 	include, err := matchFiles(view.Include)
 	if err != nil {
