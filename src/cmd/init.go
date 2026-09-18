@@ -1,14 +1,33 @@
 /*
 Copyright © 2026 NAME HERE <EMAIL ADDRESS>
-
 */
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 
+	"github.com/archlens/ArchLens/input"
 	"github.com/spf13/cobra"
 )
+
+
+var template input.Input = input.Input {
+	Name: "ArchLens",	
+	RootFolder: ".",
+	Github: input.Github{
+		Url: "https://github.com/archlens/ArchLens",
+		Branch: "master",
+	},	
+	SaveLocation: "./diagrams/",
+	Views: map[string]input.View {
+		"completeView": input.View{
+			Include: []string{"**/*.*","*.*"},
+			Exclude: []string{"go.sum","go.mod"},
+		},
+	},
+}
 
 // initCmd represents the init command
 var initCmd = &cobra.Command{
@@ -21,20 +40,24 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("init called")
+		l, _ := cmd.Flags().GetString("location")
+
+		data, err := json.Marshal(template)
+		if err != nil {
+			panic(err)
+		}
+	
+		var path = "./archlens.json"
+		if l != "" {
+			path = l
+		}
+
+		os.WriteFile(path, data, 0644)
+		fmt.Println("Wrote archlens.json to current location")
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(initCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// initCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// initCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	initCmd.Flags().StringP("location", "l", "", "Choose the location to put the default archlens.json file")
 }
