@@ -24,8 +24,8 @@ We will aim for concurrency where it makes sense this will not be explicit in th
     - Currently uses plantuml but we might switch to mermaid
 
 - [ ] Utils
-    - [ ] Path managers (more than likely will change to glob)
-    - [ ] Input handling (more than likely change to glob based structure)
+    - [x] Path managers (more than likely will change to glob)
+    - [x] Input handling (more than likely change to glob based structure)
     - [ ] Serealizers 
 
 - [ ] Config managment
