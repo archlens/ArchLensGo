@@ -1,6 +1,6 @@
 {
     "name": "Archlens",
-    "rootFolder": "src/c-sharp/",
+    "rootFolder": "/home/august/ITU/msc3/research_project/ArchLensGo/src",
     "github": {
         "url": "https://github.com/archlens/ArchLens",
         "branch": "master"
@@ -9,12 +9,20 @@
     "views": {
         "completeView": {
             "include": [
-                "**/*.go"
+                "**/*.*",
+                "*.*"
             ],
             "exclude": [
-                "**/go.sum",
-                "**/go.mod"
+                "go.sum",
+                "go.mod"
             ]
+        },
+        "smallerView": {
+            "include": [
+                "cmd/*.*",
+                "main.go"
+            ],
+            "exclude": []
         }
     }
 }

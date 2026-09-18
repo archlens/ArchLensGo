@@ -20,9 +20,13 @@ and usage of using your command. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
-	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		configPath := args[0]
+		var configPath string
+		if len(args) == 0 {
+			configPath = "archlens.json"
+		} else {
+			configPath = args[0]
+		}
 		
 		res, err := input.Load(configPath)
 		if err != nil {
@@ -30,12 +34,17 @@ to quickly create a Cobra application.`,
 			return
 		}
 		fmt.Printf("Config: %+v\n", *res)
-		view := res.Views["completeView"]
-		files, err := input.GetFiles(&view)
-		if err != nil {
-			fmt.Printf("Error when trying to get files for view: %v\n", err)
+		viewFiles := make(map[string][]string)
+		for name, view := range res.Views {
+			files, err := input.GetFiles(&view, res.RootFolder)
+			if err != nil {
+				fmt.Printf("Error when trying to get files for %s: %v\n", name, err)
+			}
+			viewFiles[name] = files
 		}
-		fmt.Println(files)
+		for name, files := range viewFiles {
+			fmt.Printf("%s:\t%+s\n", name, files)
+		}
 	},
 }
 

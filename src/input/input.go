@@ -55,7 +55,12 @@ func matchFiles(patterns []string) (map[string]struct{}, error) {
 	return files, nil
 }
 
-func GetFiles(view *View) ([]string, error) {
+func GetFiles(view *View, rootDir string) ([]string, error) {
+	err := os.Chdir(rootDir)
+	if err != nil {
+		return []string{}, err
+	}
+
 	include, err := matchFiles(view.Include)
 	if err != nil {
 		return []string{}, err
