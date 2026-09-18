@@ -1,0 +1,19 @@
+{
+    "name": "Archlens",
+    "rootFolder": "src/c-sharp/",
+    "github": {
+        "url": "https://github.com/archlens/ArchLens",
+        "branch": "master"
+    },
+    "saveLocation": "./diagrams/",
+    "views": {
+        "completeView": {
+            "include": [
+                "this"
+            ],
+            "exclude": [
+                "that"
+            ]
+        }
+    }
+}
