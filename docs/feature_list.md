@@ -4,6 +4,7 @@ We will aim for concurrency where it makes sense this will not be explicit in th
     - [ ] Multi-language parsing (C#)
     - [ ] AST based parser (most likely)
     - [ ] Better than regex parsing? (will have to research)
+    - [ ] go-tree-sitter which gives us access to tree-sitter this should solve most of the parsing problems
 
 - [ ] CLI Entry (commands)
     - [ ] init
