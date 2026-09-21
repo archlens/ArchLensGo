@@ -56,5 +56,5 @@ to quickly create a Cobra application.`,
 
 func init() {
 	rootCmd.AddCommand(initCmd)
-	initCmd.Flags().StringP("location", "l", "", "Choose the location to put the default archlens.json file")
+	initCmd.Flags().StringP("location", "l", "", "Choose the location to put the default archlens.json file (defaults to ./archlens.json)")
 }
