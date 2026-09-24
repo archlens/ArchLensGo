@@ -1,0 +1,79 @@
+name: Test and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run checks
+        uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77
+        with:
+          check: "**"
+          cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+          version: "latest"
+
+  build:
+    needs: test
+    if: success() 
+    permissions:
+        contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup environment
+        uses: actions/checkout@v4
+      - name: Build and export
+        uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77
+        with:
+          module: .
+          args: build --src=./src export --path=./build
+          cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+          version: "latest"
+      - name: Package binaries
+        run: |
+          mkdir -p dist
+          for dir in build/*/; do
+            target=$(basename "$dir")
+            if [[ "$target" == windows-* ]]; then
+              (cd "$dir" && zip -r "../../dist/archlens-${target}.zip" .)
+            else
+              tar -czvf "dist/archlens-${target}.tar.gz" -C "$dir" .
+            fi
+          done
+          ls -la dist/
+      - name: Auto Changelog
+        uses: ardalanamini/auto-changelog@v4.0.1
+        id  : changelog
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          commit-types: |
+              feat: New Features
+              fix: Bug Fixes
+              build: Build System & Dependencies
+              perf: Performance Improvements
+              docs: Documentation
+              test: Tests
+              refactor: Refactors
+              chore: Chores
+              ci: CI
+              cd: CD
+              ci/cd: CI/CD
+              style: Code Style
+              revert: Reverts
+      - name: Create release
+        uses: softprops/action-gh-release@v2.5.0
+        with:
+          body: ${{steps.changelog.outputs.changelog}}
+          files: |
+            dist/*.tar.gz
+            dist/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
