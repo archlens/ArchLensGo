@@ -49,7 +49,10 @@ to quickly create a Cobra application.`,
 			path = l
 		}
 
-		os.WriteFile(path, data, 0644)
+		err = os.WriteFile(path, data, 0644)
+		if err != nil {
+			Sugar.Errorf("Could not write archlens.json: %s", err.Error())
+		}
 		fmt.Println("Wrote archlens.json to current location")
 	},
 }

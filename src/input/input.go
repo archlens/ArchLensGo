@@ -61,8 +61,9 @@ func matchFiles(patterns []string) (map[string]struct{}, error) {
 
 func GetFiles(view *View, rootDir string) ([]string, error) {
 	restore := utils.WithWorkingDirectory(rootDir)
-	defer restore()
-
+	defer func() {
+		_ = restore()
+	}()
 	include, err := matchFiles(view.Include)
 	if err != nil {
 		return []string{}, err
@@ -72,7 +73,7 @@ func GetFiles(view *View, rootDir string) ([]string, error) {
 		return []string{}, err
 	}
 	
-	for path, _ := range exclude {
+	for path := range exclude {
 		delete(include, path)
 	}
 	return slices.Collect(maps.Keys(include)), nil
@@ -80,7 +81,9 @@ func GetFiles(view *View, rootDir string) ([]string, error) {
 
 func ReadFiles(files []string, rootDir string) ([][]byte, []error) {
 	restore := utils.WithWorkingDirectory(rootDir)
-	defer restore()
+	defer func() {
+		_ = restore()
+	}()
 	results := make([][]byte, len(files))
 	errs := make([]error, len(files))
 

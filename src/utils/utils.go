@@ -7,7 +7,10 @@ func WithWorkingDirectory(path string) func() error {
 	if err != nil {
 		panic(err)
 	}
-	os.Chdir(path)
+	err = os.Chdir(path)
+	if err != nil {
+		panic(err)
+	}
 	return func() error {
 		return os.Chdir(currentWd)
 	}
