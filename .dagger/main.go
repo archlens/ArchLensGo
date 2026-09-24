@@ -25,7 +25,7 @@ type ArchLensGo struct {
 }
 
 func New(
-	// +defaultPath="/"
+	// +defaultPath="./src"
 	src *dagger.Directory,
 ) *ArchLensGo {
 	return &ArchLensGo{
@@ -38,14 +38,14 @@ func (m *ArchLensGo) WithSource(src *dagger.Directory) *ArchLensGo {
 	return m
 }
 
-func (m *ArchLensGo) BuildEnv(src *dagger.Directory) *dagger.Container {
+func (m *ArchLensGo) BuildEnv() *dagger.Container {
 	return dag.Container().
 		From("golang:1.26-bookworm").
-		WithDirectory("./src", src).
+		WithDirectory("./src", m.Src).
 		WithWorkdir("./src").WithExec([]string{"go", "mod", "tidy"})
 }
 
-func (m *ArchLensGo) Build(src *dagger.Directory) *dagger.Directory {
+func (m *ArchLensGo) Build() *dagger.Directory {
 
 	// define build matrix
 	gooses := []string{"linux", "darwin", "windows"}
@@ -54,7 +54,7 @@ func (m *ArchLensGo) Build(src *dagger.Directory) *dagger.Directory {
 	// create empty directory to put build artifacts
 	outputs := dag.Directory()
 
-	golang := m.BuildEnv(src)
+	golang := m.BuildEnv()
 
 	for _, goos := range gooses {
 		for _, goarch := range goarches {
@@ -78,8 +78,7 @@ func (m *ArchLensGo) Build(src *dagger.Directory) *dagger.Directory {
 
 // +check
 func (m *ArchLensGo) Test(ctx context.Context) (string, error) {
-	return m.BuildEnv(m.Src).
-		WithWorkdir("./src").
+	return m.BuildEnv().
 		WithExec([]string{"go", "test", "./..."}).
 		Stdout(ctx)
 }
@@ -88,7 +87,6 @@ func (m *ArchLensGo) Test(ctx context.Context) (string, error) {
 func (m *ArchLensGo) Lint(ctx context.Context) (string, error) {
 	return dag.Container().From("golangci/golangci-lint:latest-alpine").
 		WithDirectory("./src", m.Src).
-		WithWorkdir("./src/src").
+		WithWorkdir("./src").
 		WithExec([]string{"golangci-lint", "run"}).Stdout(ctx)
 }
-
