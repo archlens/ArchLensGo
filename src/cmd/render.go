@@ -1,12 +1,12 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/archlens/ArchLens/input"
 	"github.com/archlens/ArchLens/parsers"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
-
-	ts_python "github.com/tree-sitter/tree-sitter-python/bindings/go"
 )
 
 // renderCmd represents the render command
@@ -48,27 +48,23 @@ to quickly create a Cobra application.`,
 			viewFiles[name] = files
 		}
 
-		var data [][]byte
-		var errs []error
+		// TODO: We could potentially even wait group the views 
 		for name, files := range viewFiles {
 			sugar.Debugf("%s: %d files: %v", name, len(files), files)
 			if len(files) == 0 {
 				continue
 			}
 
-			data, errs = input.ReadFiles(files)
-			if len(data) == 0 || data[0] == nil {
-				continue
-			}
+			results := parsers.GetASTs(files, res.RootFolder)
 
-			for _, err := range errs {
-				if err != nil {
-					sugar.Error(err)
+			for _, r := range results {
+				if r.Err != nil {
+					fmt.Printf("%s: error: %v\n", r.File, r.Err)
+					continue
 				}
+				fmt.Printf("%s: got AST: %+v\n", r.File, r.AST)
 			}
-			parsers.Parse(ts_python.Language(), data[0])
 		}
-
 	},
 }
 

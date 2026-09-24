@@ -1,68 +1,76 @@
 package parsers
 
 import (
+	"encoding/json"
 	"fmt"
-	"unsafe"
+	"os/exec"
+	"runtime"
+	"sync"
 
-	ts "github.com/tree-sitter/go-tree-sitter"
+	"github.com/archlens/ArchLens/utils"
 )
 
-func Parse(rawLang unsafe.Pointer, code []byte) {
-	language := ts.NewLanguage(rawLang)
-
-	parser := ts.NewParser()
-	defer parser.Close()
-	parser.SetLanguage(language)
-
-	tree := parser.Parse(code, nil)
-	defer tree.Close()
-
-	// tree and code are both still valid here — that's the window
-	// in which you can call ExtractImports.
-	imports := ExtractImports(language, tree, code)
-	fmt.Println(imports)
+type ASTNode struct {
+	Type     string    `json:"type"`
+	Value    string    `json:"value,omitempty"`
+	Children []ASTNode `json:"children,omitempty"`
+	Line     int       `json:"line,omitempty"`
 }
 
-func ExtractImports(language *ts.Language, tree *ts.Tree, code []byte) []string {
-	// Python example — adjust the pattern per language's grammar
-	queryStr := `
-	(import_statement
-	name: (dotted_name) @module)
+type ASTResult struct {
+	File string
+	AST  *ASTNode
+	Err  error
+}
 
-	(import_statement
-	name: (aliased_import
-		name: (dotted_name) @module))
+// GetASTs concurrently parses each file in `files` (relative to rootDir)
+// and returns the collected results. Errors are captured per-file rather
+// than aborting the whole batch.
+func GetASTs(files []string, rootDir string) []ASTResult {
+	var wg sync.WaitGroup
+	resultsCh := make(chan ASTResult, len(files))
+	// Just to make sure we don't spawn too many threads
+	sem := make(chan struct{}, runtime.NumCPU())
 
-	(import_from_statement
-	module_name: (dotted_name) @module)
+	for _, file := range files {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(f string) {
+			defer wg.Done()
+			defer func() { <-sem }()
 
-	(import_from_statement
-	module_name: (relative_import) @module)
-	`
+			ast, err := GetAST(f, rootDir)
+			resultsCh <- ASTResult{File: f, AST: ast, Err: err}
+		}(file)
+	}
 
-	query, err := ts.NewQuery(language, queryStr)
+	wg.Wait()
+	close(resultsCh)
+
+	results := make([]ASTResult, 0, len(files))
+	for r := range resultsCh {
+		results = append(results, r)
+	}
+	return results
+}
+
+func GetAST(filePath string, rootDir string) (*ASTNode, error) {
+	restore := utils.WithWorkingDirectory(rootDir)
+	defer restore()
+	// Might want to make this the default path and add a k-v in archlens.json for ast_parser path in case people wanna put it weird places
+	cmd := exec.Command("python3", rootDir+"/arch.py", filePath)
+
+	out, err := cmd.Output()
 	if err != nil {
-		panic(err)
-	}
-	defer query.Close()
-
-	cursor := ts.NewQueryCursor()
-	defer cursor.Close()
-
-	matches := cursor.Matches(query, tree.RootNode(), code)
-
-	fmt.Println(tree.RootNode().ToSexp())
-
-	var imports []string
-	for {
-		match := matches.Next()
-		if match == nil {
-			break
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return nil, fmt.Errorf("python failed: %s", exitErr.Stderr)
 		}
-		for _, capture := range match.Captures {
-			imports = append(imports, capture.Node.Utf8Text(code))
-		}
+		return nil, err
 	}
 
-	return imports
+	var root ASTNode
+	if err := json.Unmarshal(out, &root); err != nil {
+		return nil, fmt.Errorf("bad json from python: %w", err)
+	}
+	return &root, nil
 }
