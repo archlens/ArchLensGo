@@ -34,7 +34,7 @@ jobs:
         uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77
         with:
           module: .
-          args: build --src=./src export --path=./build
+          args: build export --path=./build
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
           version: "latest"
       - name: Package binaries
