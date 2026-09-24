@@ -78,7 +78,9 @@ func GetFiles(view *View, rootDir string) ([]string, error) {
 	return slices.Collect(maps.Keys(include)), nil
 }
 
-func ReadFiles(files []string) ([][]byte, []error) {
+func ReadFiles(files []string, rootDir string) ([][]byte, []error) {
+	restore := utils.WithWorkingDirectory(rootDir)
+	defer restore()
 	results := make([][]byte, len(files))
 	errs := make([]error, len(files))
 
