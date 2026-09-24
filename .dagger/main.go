@@ -38,18 +38,10 @@ func (m *ArchLensGo) WithSource(src *dagger.Directory) *ArchLensGo {
 	return m
 }
 
-// Returns a container that echoes whatever string argument is provided
-func (m *ArchLensGo) ContainerEcho(stringArg string) *dagger.Container {
-	return dag.Container().From("alpine:latest").WithExec([]string{"echo", stringArg})
-}
-
 func (m *ArchLensGo) BuildEnv(src *dagger.Directory) *dagger.Container {
 	return dag.Container().
 		From("golang:1.26-bookworm").
 		WithDirectory("./src", src).
-		WithExec([]string{"apt-get", "update"}).
-    	WithExec([]string{"apt-get", "install", "-y", "build-essential"}).
-		WithEnvVariable("CGO_ENABLED", "1").
 		WithWorkdir("./src").WithExec([]string{"go", "mod", "tidy"})
 }
 
