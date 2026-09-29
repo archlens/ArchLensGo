@@ -1,31 +1,110 @@
 package graph
 
+import (
+	"errors"
+	"maps"
+	"slices"
+)
+
 type Graph struct {
-	Nodes []*Node
+	nodes      map[string]*node
+	TotalNodes   uint
+	TotalEdges uint
 }
 
-type Node struct {
-	Name string
-	Incoming uint
-	Outgoing uint
-	Successors map[string]*Node // Name of node to node pointer
+type node struct {
+	name       string
+	incoming  uint
+	outgoing   uint
+	successors map[string]*node // Name of node to node pointer
+}
+
+func NewGraph() *Graph {
+	return &Graph{
+		nodes: map[string]*node{},
+		TotalNodes: 0,
+		TotalEdges: 0,
+	}
+}
+
+func newNode(name string) *node {
+	return &node{
+		name: name,
+		incoming: 0,
+		outgoing: 0,
+		successors: map[string]*node{},
+	}
 }
 
 func (g *Graph) GetNodeNames() []string {
-	names := make([]string, len(g.Nodes))
-	for i, node := range g.Nodes {
-		names[i] = node.Name
-	}
-	return names
+	return slices.Collect(maps.Keys(g.nodes))
 }
 
-func (n *Node) AddSuccessors(nodes ...*Node) {
-	for _, node := range nodes {
-		_, ok := n.Successors[node.Name]
-		if !ok { // New node is not already a successor
-			node.Incoming++
-			n.Outgoing++
-			n.Successors[node.Name] = node
+// Add nodes to graph. Nodes that already are in the graph are ignored
+func (g *Graph) AddNodes(nodes ...string) {
+	for _, nodeName := range nodes {
+		if _, ok := g.nodes[nodeName]; !ok {
+			g.nodes[nodeName] = newNode(nodeName)
+			g.TotalNodes++
 		}
 	}
+}
+
+// Adds nodes as predecessors to the source node. Predecessor nodes that
+// aren't already in the graph will be added.
+//
+// Returns an error if the source node doesn't exist in the graph
+func (g *Graph) AddPredecessors(source string, predecessors ...string) error {
+	var sourceNode *node
+	var ok bool
+	if sourceNode, ok = g.nodes[source]; !ok {
+		return errors.New("Source node is not in graph")
+	}
+
+	var preNode *node
+	for _, predecessorNode := range predecessors {
+		if preNode, ok = g.nodes[predecessorNode]; !ok {
+			// Create and add node if not in graph
+			preNode = newNode(predecessorNode)
+			g.nodes[predecessorNode] = preNode
+			g.TotalNodes++
+		}
+
+		if _, ok = preNode.successors[source]; !ok {
+			preNode.successors[source] = sourceNode
+			preNode.outgoing++
+			sourceNode.incoming++
+			g.TotalEdges++
+		}
+	}
+	return nil
+}
+
+// Adds nodes as successors to the source node. Successor nodes that
+// aren't already in the graph will be added.
+//
+// Returns an error if the source node doesn't exist in the graph
+func (g *Graph) AddSuccessors(source string, successors ...string) error {
+	var sourceNode *node
+	var ok bool
+	if sourceNode, ok = g.nodes[source]; !ok {
+		return errors.New("Source node is not in graph")
+	}
+	var sucNode *node
+	for _, successorNode := range successors {
+		if sucNode, ok = g.nodes[successorNode]; !ok {
+			// Create and add node if not in graph
+			sucNode = newNode(successorNode)
+			g.nodes[successorNode] = sucNode
+			g.TotalNodes++
+		}
+
+		if _, ok = sourceNode.successors[successorNode]; !ok {
+			sourceNode.successors[successorNode] = sucNode
+			sucNode.incoming++
+			sourceNode.outgoing++
+			g.TotalEdges++
+		}
+	}
+	return nil
 }
