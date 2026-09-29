@@ -19,7 +19,10 @@ func Test_Graph(t *testing.T) {
 	}
 	
 	oneSuccessors := []string{"2", "3", "7"}
-	graph.AddSuccessors("1", oneSuccessors...)
+	err := graph.AddSuccessors("1", oneSuccessors...)
+	if err != nil {
+		t.Fatal("Failed to find source node in graph")
+	}
 	if len(graph.nodes) != len(nodes)+1 {
 		t.Errorf("Incorrect number of nodes in graph. AddSuccessor might not have added the new node\nExpected:\t%d\nActual\t%d\n", len(nodes)+1, len(graph.nodes))
 	}
@@ -28,7 +31,10 @@ func Test_Graph(t *testing.T) {
 	}
 
 	fivePredecessors := []string{"2", "3", "8"}
-	graph.AddSuccessors("5", fivePredecessors...)
+	err = graph.AddPredecessors("5", fivePredecessors...)
+	if err != nil {
+		t.Fatal("Failed to find source node in graph")
+	}
 	if len(graph.nodes) != len(nodes)+2 {
 		t.Errorf("Incorrect number of nodes in graph. AddPredecessors might not have added the new node\nExpected:\t%d\nActual\t%d\n", len(nodes)+1, len(graph.nodes))
 	}

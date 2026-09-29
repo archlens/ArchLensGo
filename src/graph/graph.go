@@ -58,7 +58,7 @@ func (g *Graph) AddPredecessors(source string, predecessors ...string) error {
 	var sourceNode *node
 	var ok bool
 	if sourceNode, ok = g.nodes[source]; !ok {
-		return errors.New("Source node is not in graph")
+		return errors.New("source node is not in graph")
 	}
 
 	var preNode *node
@@ -88,7 +88,7 @@ func (g *Graph) AddSuccessors(source string, successors ...string) error {
 	var sourceNode *node
 	var ok bool
 	if sourceNode, ok = g.nodes[source]; !ok {
-		return errors.New("Source node is not in graph")
+		return errors.New("source node is not in graph")
 	}
 	var sucNode *node
 	for _, successorNode := range successors {
