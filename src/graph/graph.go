@@ -51,6 +51,7 @@ func (g *Graph) AddNodes(nodes ...string) {
 }
 
 // Removes a given node from the graph recursively walking all children to make sure it is no longer in the graph
+// Function doesn't return error as removing non existing nodes changes nothing so this function shouldn't be able to fail
 func (g *Graph) RemoveNodes(nodes ...string) {
 	for _, nodeName := range nodes {
 		n, ok := g.nodes[nodeName]

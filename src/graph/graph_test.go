@@ -41,4 +41,30 @@ func Test_Graph(t *testing.T) {
 	if int(graph.TotalEdges) != len(oneSuccessors) + len(fivePredecessors) {
 		t.Errorf("Incorrect number of edges\nExpected:\t%d\nActual:\t%d\n", len(oneSuccessors) + len(fivePredecessors), graph.TotalEdges)
 	}
+
+	// Removing a node that isn't in the graph should change nothing
+	graph.RemoveNodes("does-not-exist")
+	if len(graph.nodes) != 8 || graph.TotalNodes != 8 || graph.TotalEdges != 6 {
+		t.Errorf("Removing a missing node changed the graph\nNodes: %d, TotalNodes: %d, TotalEdges: %d\n",
+			len(graph.nodes), graph.TotalNodes, graph.TotalEdges)
+	}
+
+	// Remove "5": it only has incoming edges (2, 3, 8 -> 5)
+	graph.RemoveNodes("5")
+	if _, ok := graph.nodes["5"]; ok {
+		t.Error("Node 5 is still in graph.nodes after removal")
+	}
+	if len(graph.nodes) != 7 || graph.TotalNodes != 7 {
+		t.Errorf("Incorrect node count after removing 5\nExpected:\t%d\nActual:\t%d (TotalNodes: %d)\n",
+			7, len(graph.nodes), graph.TotalNodes)
+	}
+	if graph.TotalEdges != 3 {
+		t.Errorf("Incorrect edge count after removing 5\nExpected:\t%d\nActual:\t%d\n", 3, graph.TotalEdges)
+	}
+	for _, name := range fivePredecessors {
+		parent := graph.nodes[name]
+		if _, ok := parent.successors["5"]; ok {
+			t.Errorf("Node %s still has a dangling successor pointer to removed node 5", name)
+		}
+	}
 }
