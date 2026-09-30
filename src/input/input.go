@@ -2,12 +2,10 @@ package input
 
 import (
 	"encoding/json"
-	"fmt"
 	"maps"
 	"os"
 	"path/filepath"
 	"slices"
-	"sync"
 
 	"github.com/archlens/ArchLens/utils"
 )
@@ -71,40 +69,9 @@ func GetFiles(view *View, rootDir string) ([]string, error) {
 	if err != nil {
 		return []string{}, err
 	}
-	
+
 	for path := range exclude {
 		delete(include, path)
 	}
 	return slices.Collect(maps.Keys(include)), nil
-}
-
-func ReadFiles(files []string, rootDir string) ([][]byte, []error) {
-	restore := utils.WithWorkingDirectory(rootDir)
-	defer restore()
-	results := make([][]byte, len(files))
-	errs := make([]error, len(files))
-
-	// Using wait group as to synchronize
-	var wg sync.WaitGroup
-	wg.Add(len(files)) 
-
-	for i, file := range files {
-		go func(i int, file string) {
-			defer wg.Done()
-			data, err := ReadFile(file)
-			results[i] = data
-			errs[i] = err
-		}(i, file)
-	}
-
-	wg.Wait()
-	return results, errs
-}
-
-func ReadFile(file string) ([]byte, error) {
-	data, err := os.ReadFile(file)
-	if err != nil {
-		return nil, fmt.Errorf("reading %s: %w", file, err)
-	}
-	return data, nil
 }
