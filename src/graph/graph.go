@@ -50,6 +50,37 @@ func (g *Graph) AddNodes(nodes ...string) {
 	}
 }
 
+// Removes a given node from the graph recursively walking all children to make sure it is no longer in the graph
+func (g *Graph) RemoveNodes(nodes ...string) {
+	for _, nodeName := range nodes {
+		n, ok := g.nodes[nodeName]
+		if !ok {
+			continue
+		}
+
+		// Walk children to remove imports
+		for _, children := range n.successors {
+			children.incoming--
+			g.TotalEdges--
+		}
+
+		// Walk graph to find parent nodes and remove self from them
+		// This part is very slow and it might be possible to make it faster if we build and maintain the graph differently
+		// At the same time this should be a rare operation so maybe it doesn't matter too much
+		for _, parent := range g.nodes {
+			if _, ok := parent.successors[nodeName]; ok {
+				delete(parent.successors, nodeName)
+				parent.outgoing--
+				g.TotalEdges--
+			}
+		}
+
+		// Finally remove node from graph
+		delete(g.nodes, nodeName)
+		g.TotalNodes--
+	}
+}
+
 // Adds nodes as predecessors to the source node. Predecessor nodes that
 // aren't already in the graph will be added.
 //
