@@ -2,7 +2,7 @@ package utils
 
 import "os"
 
-func WithWorkingDirectory(path string) func() error {
+func WithWorkingDirectory(path string) func() {
 	currentWd, err := os.Getwd()
 	if err != nil {
 		panic(err)
@@ -11,7 +11,9 @@ func WithWorkingDirectory(path string) func() error {
 	if err != nil {
 		panic(err)
 	}
-	return func() error {
-		return os.Chdir(currentWd)
+	return func() {
+		if err := os.Chdir(currentWd); err != nil {
+			panic(err)
+		}
 	}
 }

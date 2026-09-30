@@ -22,11 +22,7 @@ func Test_WithWorkingDirectory(t *testing.T) {
 		t.Errorf("Working directory didn't change\n Before: %s\n After: %s\n", current, after)
 	}
 
-	err = restore() 
-	if err != nil {
-		t.Fatal(err)
-	}
-		
+	restore()
 
 	after, err = os.Getwd()
 	if err != nil {

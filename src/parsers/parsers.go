@@ -56,9 +56,7 @@ func GetASTs(files []string, rootDir string) []ASTResult {
 
 func GetAST(filePath string, rootDir string) (*ASTNode, error) {
 	restore := utils.WithWorkingDirectory(rootDir)
-	defer func() {
-		_ = restore()
-	}()
+	defer restore()
 	// Might want to make this the default path and add a k-v in archlens.json for ast_parser path in case people wanna put it weird places
 	cmd := exec.Command("python3", rootDir+"/arch.py", filePath)
 
