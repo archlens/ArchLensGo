@@ -11,10 +11,8 @@ import (
 )
 
 type ASTNode struct {
-	Type     string    `json:"type"`
-	Value    string    `json:"value,omitempty"`
-	Children []ASTNode `json:"children,omitempty"`
-	Line     int       `json:"line,omitempty"`
+	Package    string    `json:"package"`
+	Dependencies []string `json:"dependencies"`
 }
 
 type ASTResult struct {
