@@ -2,7 +2,10 @@ module github.com/archlens/ArchLens
 
 go 1.26.5
 
-require github.com/spf13/cobra v1.10.2
+require (
+	github.com/TyphonHill/go-mermaid v1.0.0
+	github.com/spf13/cobra v1.10.2
+)
 
 require (
 	github.com/stretchr/testify v1.10.0 // indirect
