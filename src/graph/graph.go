@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"cmp"
 	"errors"
 	"maps"
 	"slices"
@@ -8,20 +9,28 @@ import (
 
 type Graph struct {
 	nodes      map[string]*node
-	TotalNodes   uint
+	TotalNodes uint
 	TotalEdges uint
 }
 
 type node struct {
 	name       string
-	incoming  uint
+	incoming   uint
 	outgoing   uint
 	successors map[string]*node // Name of node to node pointer
+	weights    map[string]uint
+}
+
+// Edge is a directed edge: From depends on To.
+type Edge struct {
+	From string
+	To   string
+	Count uint
 }
 
 func NewGraph() *Graph {
 	return &Graph{
-		nodes: map[string]*node{},
+		nodes:      map[string]*node{},
 		TotalNodes: 0,
 		TotalEdges: 0,
 	}
@@ -29,10 +38,11 @@ func NewGraph() *Graph {
 
 func newNode(name string) *node {
 	return &node{
-		name: name,
-		incoming: 0,
-		outgoing: 0,
+		name:       name,
+		incoming:   0,
+		outgoing:   0,
 		successors: map[string]*node{},
+		weights:    map[string]uint{},
 	}
 }
 
@@ -59,27 +69,65 @@ func (g *Graph) RemoveNodes(nodes ...string) {
 			continue
 		}
 
-		// Walk children to remove imports
-		for _, children := range n.successors {
-			children.incoming--
+		// Outgoing edges (n -> child): children lose an incoming edge.
+		// A self-loop is counted here, so the parent walk below skips n.
+		for _, child := range n.successors {
+			child.incoming--
 			g.TotalEdges--
 		}
 
-		// Walk graph to find parent nodes and remove self from them
-		// This part is very slow and it might be possible to make it faster if we build and maintain the graph differently
-		// At the same time this should be a rare operation so maybe it doesn't matter too much
+		// Incoming edges (parent -> n): remove n from every parent.
+		// This scans the whole graph, which is fine for a rare operation.
 		for _, parent := range g.nodes {
+			if parent == n {
+				continue
+			}
 			if _, ok := parent.successors[nodeName]; ok {
 				delete(parent.successors, nodeName)
+				delete(parent.weights, nodeName)
 				parent.outgoing--
 				g.TotalEdges--
 			}
 		}
 
-		// Finally remove node from graph
 		delete(g.nodes, nodeName)
 		g.TotalNodes--
 	}
+}
+
+// Edges returns every edge in the graph, sorted by (From, To).
+func (g *Graph) Edges() []Edge {
+	edges := make([]Edge, 0, g.TotalEdges)
+	for name, n := range g.nodes {
+		for succ := range n.successors {
+			edges = append(edges, Edge{From: name, To: succ, Count: n.weights[succ]})
+		}
+	}
+	slices.SortFunc(edges, func(a, b Edge) int {
+		return cmp.Or(cmp.Compare(a.From, b.From), cmp.Compare(a.To, b.To))
+	})
+	return edges
+}
+
+// AddPackage records that one file in pkg imports deps. Call it once per parsed
+// file: nodes are created as needed and each pkg -> dep edge weight goes up by 1.
+func (g *Graph) AddPackage(pkg string, deps ...string) {
+	g.AddNodes(pkg)
+
+	seen := make(map[string]struct{}, len(deps))
+	filtered := make([]string, 0, len(deps))
+	for _, d := range deps {
+		if d == pkg {
+			// No loops
+			continue
+		}
+		if _, dup := seen[d]; dup {
+			continue
+		}
+		seen[d] = struct{}{}
+		filtered = append(filtered, d)
+	}
+	_ = g.AddSuccessors(pkg, filtered...)
 }
 
 // Adds nodes as predecessors to the source node. Predecessor nodes that
@@ -108,6 +156,7 @@ func (g *Graph) AddPredecessors(source string, predecessors ...string) error {
 			sourceNode.incoming++
 			g.TotalEdges++
 		}
+		preNode.weights[source]++
 	}
 	return nil
 }
@@ -137,6 +186,7 @@ func (g *Graph) AddSuccessors(source string, successors ...string) error {
 			sourceNode.outgoing++
 			g.TotalEdges++
 		}
+		sourceNode.weights[successorNode]++
 	}
 	return nil
 }
