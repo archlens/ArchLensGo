@@ -26,6 +26,7 @@ type Input struct {
 	RootFolder   string          `json:"rootFolder"`
 	Views        map[string]View `json:"views"`
 	SaveLocation string          `json:"saveLocation"`
+	RunCommand 	 string 		 `json:"runCommand"`
 }
 
 func Load(path string) (*Input, error) {
