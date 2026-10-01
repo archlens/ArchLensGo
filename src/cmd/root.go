@@ -3,6 +3,7 @@ package cmd
 import (
 	"os"
 
+	"github.com/archlens/ArchLens/utils"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
@@ -23,11 +24,7 @@ var Sugar *zap.SugaredLogger
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	logger, _ := zap.NewProduction()
-	defer func() {
-		_ = logger.Sync()
-	}()
-	Sugar = logger.Sugar()
+	Sugar = utils.NewPrettySugaredLogger()
 
 	err := rootCmd.Execute()
 	if err != nil {

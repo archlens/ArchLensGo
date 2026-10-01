@@ -1,10 +1,13 @@
 package cmd
 
 import (
-	"fmt"
+	"maps"
+	"path/filepath"
+	"slices"
 
+	"github.com/archlens/ArchLens/caching"
 	"github.com/archlens/ArchLens/input"
-	"github.com/archlens/ArchLens/parsers"
+	"github.com/archlens/ArchLens/mermaid"
 	"github.com/spf13/cobra"
 )
 
@@ -35,31 +38,47 @@ to quickly create a Cobra application.`,
 		}
 		Sugar.Infof("Config: %+v", *res)
 
+		absRoot, err := filepath.Abs(res.RootFolder)
+		if err != nil {
+			Sugar.Errorf("Error resolving root folder: %v", err)
+			return
+		}
+		cachePath := filepath.Join(absRoot, ".archlens", "cache.json")
+		cache := caching.LoadCache(cachePath)
+
 		viewFiles := make(map[string][]string)
+		union := make(map[string]bool)
 		for name, view := range res.Views {
 			files, err := input.GetFiles(&view, res.RootFolder)
 			if err != nil {
 				Sugar.Errorf("Error when trying to get files for %s: %v", name, err)
+				continue
+			}
+			for i, f := range files {
+				files[i] = filepath.ToSlash(filepath.Clean(f))
+				union[files[i]] = true
 			}
 			viewFiles[name] = files
 		}
 
-		// TODO: We could potentially even wait group the views 
+		if err := cache.Refresh(absRoot, slices.Sorted(maps.Keys(union)), res.RunCommand); err != nil {
+			Sugar.Errorf("Error refreshing cache: %v", err)
+			return
+		}
+
+		// Graphs are cheap to build from cached results, so rebuild one per view.
 		for name, files := range viewFiles {
 			Sugar.Debugf("%s: %d files: %v", name, len(files), files)
 			if len(files) == 0 {
 				continue
 			}
+			g := cache.Graph(files)
+			mermaid.Render(g, name, res.SaveLocation)
+			Sugar.Infof("%s: %d nodes, %d edges", name, g.TotalNodes, g.TotalEdges)
+		}
 
-			results := parsers.GetASTs(files, res.RootFolder)
-
-			for _, r := range results {
-				if r.Err != nil {
-					fmt.Printf("%s: error: %v\n", r.File, r.Err)
-					continue
-				}
-				fmt.Printf("%s: got AST: %+v\n", r.File, r.AST)
-			}
+		if err := cache.Save(cachePath); err != nil {
+			Sugar.Errorf("Error saving cache: %v", err)
 		}
 	},
 }
