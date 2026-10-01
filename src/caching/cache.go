@@ -71,13 +71,13 @@ func gitHead(root string) (string, error) {
 }
 
 // Refresh brings the cache up to date for files, which must be sorted and unique.
-func (c *Cache) Refresh(root string, files []string, runCommand string) error {
+func (c *Cache) Refresh(root string, files []string, runCommand string, reParseFlag bool) error {
 	head, herr := gitHead(root)
 	changes, cerr := gitChanges(root, c.Commit)
 
 	// Reparse everything if git can't tell us what changed, or if the set of
 	// files changed (an added or removed file can change how imports resolve).
-	full := herr != nil || cerr != nil || c.Commit == "" || !slices.Equal(c.Known, files)
+	full := herr != nil || cerr != nil || c.Commit == "" || !slices.Equal(c.Known, files) || reParseFlag
 
 	toParse := map[string]bool{}
 	if !full {

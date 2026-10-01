@@ -23,6 +23,7 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// probably move this and make it a bit more generalized
+		p, _ := cmd.Flags().GetBool("parse-full")
 
 		var configPath string
 		if len(args) == 0 {
@@ -61,7 +62,7 @@ to quickly create a Cobra application.`,
 			viewFiles[name] = files
 		}
 
-		if err := cache.Refresh(absRoot, slices.Sorted(maps.Keys(union)), res.RunCommand); err != nil {
+		if err := cache.Refresh(absRoot, slices.Sorted(maps.Keys(union)), res.RunCommand, p); err != nil {
 			Sugar.Errorf("Error refreshing cache: %v", err)
 			return
 		}
@@ -85,4 +86,5 @@ to quickly create a Cobra application.`,
 
 func init() {
 	rootCmd.AddCommand(renderCmd)
+	renderCmd.Flags().BoolP("parse-full", "p", false, "A flag to fully parse any project again even if cache is present")
 }
