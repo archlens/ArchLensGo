@@ -1,11 +1,20 @@
 #!/usr/bin/env python3
 """ArchLens parser for Python.
 
-Reads a single .py file, builds an AST, extracts imports, keeps only those that
-resolve to a file or directory inside the project root, and prints JSON to
-stdout:
+Reads a single .py file, finds its static imports, keeps only those that
+resolve to something inside the project root, and prints JSON to stdout:
 
     {"package": str, "dependencies": [str, ...]}
+
+Naming (package-level nodes):
+  * A package is the directory containing a source file, written as its path
+    relative to the root with "/" as the separator on every platform.
+    The root directory itself is ".".
+  * `package` is the package of the parsed file. Each dependency is the package
+    of the file or directory the import resolved to. File names never appear.
+  * A dependency on the parsed file's own package is omitted.
+  * Names come from the resolved path, never from the import text, so the same
+    file always gets the same string however it was imported.
 
 Resolution follows Python's own lookup rules:
   * absolute imports are searched in the directory of the parsed file (Python
@@ -13,14 +22,21 @@ Resolution follows Python's own lookup rules:
     <root>/src if it exists;
   * relative imports are resolved against the location of the parsed file;
   * regular modules/packages win over bare directories (namespace packages),
-    and bare directories never shadow a standard library module.
+    and bare directories never shadow a standard library module;
+  * `from pkg import name` checks whether `pkg.name` is a module first and
+    falls back to `pkg`;
+  * paths are resolved through symlinks before the "inside the root" check.
 
-Names are always built from the resolved path relative to the root, e.g.
-`app.core.models`, so the same file gets the same string however it was
-imported, and matches the `package` value of that file's own parser run.
+All static imports count, wherever they appear in the file (inside functions,
+conditionals, TYPE_CHECKING blocks). Dynamic imports (importlib, __import__)
+are ignored. Dependencies are listed in the order first found, without
+duplicates. Errors go to stderr with a non-zero exit code.
 
 Usage:
     python archlens_parser.py path/to/file.py [-r path/to/project]
+
+The file path is resolved against the working directory (not the root).
+Requires Python 3.10+ (sys.stdlib_module_names).
 """
 from __future__ import annotations
 
@@ -33,21 +49,23 @@ from pathlib import Path
 STDLIB = getattr(sys, "stdlib_module_names", frozenset())
 
 
-def dotted(target: Path, root: Path) -> str | None:
-    """Dotted name of a file or directory relative to root (None if outside)."""
-    try:
-        parts = list(target.relative_to(root).parts)
-    except ValueError:
+def within(path: Path, root: Path) -> bool:
+    return path == root or root in path.parents
+
+
+def package_name(target: Path, root: Path) -> str | None:
+    """Package containing `target` (a file's directory, or the directory itself).
+
+    '/'-separated path relative to root, '.' for the root. None if outside it.
+    """
+    pkg_dir = target if target.is_dir() else target.parent
+    if not within(pkg_dir, root):
         return None
-    if parts and parts[-1].endswith(".py"):
-        parts[-1] = parts[-1][:-3]
-    if parts and parts[-1] == "__init__":
-        parts.pop()
-    return ".".join(parts) or None
+    return pkg_dir.relative_to(root).as_posix()
 
 
-def locate(module: str, dirs: list[Path], root: Path) -> str | None:
-    """Resolve a dotted module against search dirs; return its root-relative name."""
+def resolve_module(module: str, dirs: list[Path]) -> Path | None:
+    """Resolve a dotted module name to a file or directory, or None."""
     parts = module.split(".") if module else []
 
     # 1. Regular modules and packages, in search order.
@@ -55,40 +73,32 @@ def locate(module: str, dirs: list[Path], root: Path) -> str | None:
         p = base.joinpath(*parts)
         candidates = [p / "__init__.py"]
         if parts:
-            candidates.insert(0, p.parent / (p.name + ".py"))
+            candidates.insert(0, p.parent / f"{p.name}.py")
         for c in candidates:
             if c.is_file():
-                name = dotted(c, root)
-                if name:
-                    return name
+                return c.resolve()
 
     # 2. Bare directories (namespace packages), never shadowing the stdlib.
     if parts and parts[0] not in STDLIB:
         for base in dirs:
             p = base.joinpath(*parts)
             if p.is_dir():
-                name = dotted(p, root)
-                if name:
-                    return name
+                return p.resolve()
     return None
 
 
-def longest_internal_prefix(module: str, dirs: list[Path], root: Path) -> str | None:
-    """`import a.b.c` -> a.b.c if internal, else the longest internal prefix."""
-    parts = module.split(".")
+def resolve_import(name: str, dirs: list[Path]) -> Path | None:
+    """`import a.b.c` -> a.b.c if it resolves, else the longest resolving prefix."""
+    parts = name.split(".")
     for i in range(len(parts), 0, -1):
-        found = locate(".".join(parts[:i]), dirs, root)
-        if found:
-            return found
+        hit = resolve_module(".".join(parts[:i]), dirs)
+        if hit is not None:
+            return hit
     return None
-
-
-def within(path: Path, root: Path) -> bool:
-    return path == root or root in path.parents
 
 
 class ImportCollector(ast.NodeVisitor):
-    """Collects internal dependencies in source order, without duplicates."""
+    """Collects internal packages in source order, without duplicates."""
 
     def __init__(self, root: Path, file_dir: Path):
         self.root = root
@@ -99,19 +109,23 @@ class ImportCollector(ast.NodeVisitor):
         self.abs_dirs = list(dict.fromkeys(dirs))  # dedupe, keep order
         self.deps: dict[str, None] = {}  # insertion-ordered set
 
-    def add(self, name: str | None) -> None:
-        if name:
+    def add(self, hit: Path | None) -> None:
+        if hit is None:
+            return
+        name = package_name(hit, self.root)
+        if name is not None:  # None means it resolved outside the root
             self.deps[name] = None
 
     def visit_Import(self, node: ast.Import) -> None:
         for alias in node.names:
-            self.add(longest_internal_prefix(alias.name, self.abs_dirs, self.root))
+            self.add(resolve_import(alias.name, self.abs_dirs))
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         if node.level == 0:
             if not node.module:
                 return
             base, dirs = node.module, self.abs_dirs
+            base_hit = resolve_module(base, dirs)
         else:
             base_dir = self.file_dir
             for _ in range(node.level - 1):
@@ -119,13 +133,14 @@ class ImportCollector(ast.NodeVisitor):
             if not within(base_dir, self.root):
                 return  # relative import climbs out of the project
             base, dirs = node.module or "", [base_dir]
+            # `from . import x`: the base is the directory itself
+            base_hit = resolve_module(base, dirs) if base else base_dir
 
-        base_hit = locate(base, dirs, self.root)
         for alias in node.names:
             # `from pkg import name`: module first, fall back to the enclosing module
             sub = None
             if alias.name != "*":
-                sub = locate(f"{base}.{alias.name}" if base else alias.name, dirs, self.root)
+                sub = resolve_module(f"{base}.{alias.name}" if base else alias.name, dirs)
             self.add(sub or base_hit)
 
 
@@ -135,6 +150,10 @@ def main() -> int:
     ap.add_argument("-r", "--root", type=Path, default=Path("."),
                     help="project root used to decide what is internal (default: .)")
     args = ap.parse_args()
+
+    if not STDLIB:
+        print("error: Python 3.10+ is required (sys.stdlib_module_names)", file=sys.stderr)
+        return 1
 
     root = args.root.resolve()
     path = args.file.resolve()
@@ -147,16 +166,15 @@ def main() -> int:
 
     try:
         tree = ast.parse(path.read_bytes(), filename=str(path))
-    except (SyntaxError, ValueError, OSError) as e:
+    except (SyntaxError, ValueError, OSError, RecursionError) as e:
         print(f"error: cannot parse {path}: {e}", file=sys.stderr)
         return 1
 
-    package = ".".join(path.relative_to(root).parent.parts)
-    self_module = dotted(path, root)
+    package = package_name(path, root)
 
     collector = ImportCollector(root, path.parent)
     collector.visit(tree)
-    deps = [d for d in collector.deps if d != self_module]
+    deps = [d for d in collector.deps if d != package]
 
     json.dump({"package": package, "dependencies": deps}, sys.stdout)
     sys.stdout.write("\n")
