@@ -6,6 +6,7 @@
         "branch": "master"
     },
     "saveLocation": "./diagrams/",
+    "runCommand": "go run /Users/slugboi/Documents/ITU/MsC/3_sem/RPROJ/ArchLensGo/ast_parsers/go/main.go",
     "views": {
         "completeView": {
             "include": [
