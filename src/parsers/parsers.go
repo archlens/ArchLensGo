@@ -2,16 +2,17 @@ package parsers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os/exec"
 	"runtime"
+	"slices"
+	"strings"
 	"sync"
-
-	"github.com/archlens/ArchLens/utils"
 )
 
 type ASTNode struct {
-	Package    string    `json:"package"`
+	Package      string   `json:"package"`
 	Dependencies []string `json:"dependencies"`
 }
 
@@ -24,27 +25,35 @@ type ASTResult struct {
 // GetASTs concurrently parses each file in `files` (relative to rootDir)
 // and returns the collected results. Errors are captured per-file rather
 // than aborting the whole batch.
-func GetASTs(files []string, rootDir string) []ASTResult {
-	var wg sync.WaitGroup
+func GetASTs(files []string, rootDir string, runCommand string) []ASTResult {
+	numWorkers := runtime.NumCPU()
+	jobs := make(chan string, len(files))
 	resultsCh := make(chan ASTResult, len(files))
-	// Just to make sure we don't spawn too many threads
-	sem := make(chan struct{}, runtime.NumCPU())
 
-	for _, file := range files {
+	// 1. Enqueue jobs
+	for _, f := range files {
+		jobs <- f
+	}
+	close(jobs)
+
+	// 2. Spawn a fixed pool of workers
+	var wg sync.WaitGroup
+	for w := 0; w < numWorkers; w++ {
 		wg.Add(1)
-		sem <- struct{}{}
-		go func(f string) {
+		go func() {
 			defer wg.Done()
-			defer func() { <-sem }()
-
-			ast, err := GetAST(f, rootDir)
-			resultsCh <- ASTResult{File: f, AST: ast, Err: err}
-		}(file)
+			for f := range jobs {
+				ast, err := GetAST(f, rootDir, runCommand)
+				resultsCh <- ASTResult{File: f, AST: ast, Err: err}
+			}
+		}()
 	}
 
+	// 3. Wait for workers to finish
 	wg.Wait()
 	close(resultsCh)
 
+	// 4. Collect results
 	results := make([]ASTResult, 0, len(files))
 	for r := range resultsCh {
 		results = append(results, r)
@@ -52,16 +61,21 @@ func GetASTs(files []string, rootDir string) []ASTResult {
 	return results
 }
 
-func GetAST(filePath string, rootDir string) (*ASTNode, error) {
-	restore := utils.WithWorkingDirectory(rootDir)
-	defer restore()
-	// Might want to make this the default path and add a k-v in archlens.json for ast_parser path in case people wanna put it weird places
-	cmd := exec.Command("python3", rootDir+"/arch.py", filePath)
+func GetAST(filePath string, rootDir string, runCommand string) (*ASTNode, error) {
+	parts := strings.Fields(runCommand)
+	if len(parts) == 0 {
+		return nil, errors.New("runCommand is empty")
+	}
+	// program + its own arguments, then the parser flags from the spec
+	args := slices.Concat(parts[1:], []string{"-r", rootDir, filePath})
+
+	cmd := exec.Command(parts[0], args...)
+	cmd.Dir = rootDir 
 
 	out, err := cmd.Output()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			return nil, fmt.Errorf("python failed: %s", exitErr.Stderr)
+			return nil, fmt.Errorf("command failed: %s", exitErr.Stderr)
 		}
 		return nil, err
 	}
