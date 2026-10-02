@@ -41,6 +41,14 @@ func Load(path string) (*Input, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Add exlusion pattern for cache directory
+	for name, view := range input.Views {
+		input.Views[name] = View{
+			Include: view.Include, 
+			Exclude: append(view.Exclude, ".archlens/*"),
+		}
+	}
+
 	return input, nil
 }
 
@@ -52,7 +60,17 @@ func matchFiles(patterns []string) (map[string]struct{}, error) {
 			return files, err
 		}
 		for _, match := range matches {
-			files[match] = struct{}{}
+			file, err := os.Open(match)
+			if err != nil {
+				return files, err
+			}
+			fileInfo, err := file.Stat()
+			if err != nil {
+				return files, err
+			}
+			if !fileInfo.IsDir() {
+				files[match] = struct{}{}
+			}
 		}
 	}
 	return files, nil

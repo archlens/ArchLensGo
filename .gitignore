@@ -35,3 +35,4 @@ go.work.sum
 *test_parse
 .archlens.json
 .archlens/
+diagrams
