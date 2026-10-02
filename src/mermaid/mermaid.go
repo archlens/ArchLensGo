@@ -38,13 +38,13 @@ func FromGraph(g *graph.Graph, title string) *flowchart.Flowchart {
 	fc.SetDirection(flowchart.FlowchartDirectionLeftRight)
 
 	names := g.GetNodeNames()
-slices.Sort(names)
-lbl := labels(names)
+	slices.Sort(names)
+	lbl := labels(names)
 
-nodes := make(map[string]*flowchart.Node, len(names))
-for _, name := range names {
-	nodes[name] = fc.AddNode(lbl[name])
-}
+	nodes := make(map[string]*flowchart.Node, len(names))
+	for _, name := range names {
+		nodes[name] = fc.AddNode(lbl[name])
+	}
 
 	for _, e := range g.Edges() {
 		link := fc.AddLink(nodes[e.From], nodes[e.To])
@@ -53,14 +53,13 @@ for _, name := range names {
 	return fc
 }
 
-
 // Returns the mermaid diagram from graph as a string
 func FlowchartString(g *graph.Graph, title string) string {
 	return FromGraph(g, title).String()
 }
 
 // Render writes the mermaid diagram to a file specified by the archlens.json file
-func Render(g *graph.Graph, title string, diagramLocation string)  {
+func Render(g *graph.Graph, title string, diagramLocation string) {
 	err := FromGraph(g, title).RenderToFile(filepath.Join(diagramLocation, title))
 	if err != nil {
 		panic("diagram could not be saved to location: " + err.Error())

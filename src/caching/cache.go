@@ -134,7 +134,7 @@ func (c *Cache) Refresh(root string, files []string, runCommand string, reParseF
 func (c *Cache) Graph(files []string) *graph.Graph {
 	g := graph.NewGraph()
 	for _, f := range files {
-		if e, ok := c.Files[f]; ok {
+		if e, ok := c.Files[f]; ok { // TODO: fails silently. Sould probably say something about file not being in cache
 			g.AddPackage(e.Package, e.Dependencies...)
 		}
 	}
