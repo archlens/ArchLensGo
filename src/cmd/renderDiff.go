@@ -1,19 +1,131 @@
 package cmd
 
 import (
+	"fmt"
+	"maps"
+	"os"
+	"path/filepath"
+	"slices"
 
+	"github.com/archlens/ArchLens/caching"
+	"github.com/archlens/ArchLens/gitutils"
+	"github.com/archlens/ArchLens/graph"
+	"github.com/archlens/ArchLens/input"
+	"github.com/archlens/ArchLens/mermaid"
 	"github.com/spf13/cobra"
 )
 
 // renderDiffCmd represents the renderDiff command
 var renderDiffCmd = &cobra.Command{
-	Use:   "renderDiff",
-	Short: "Renders difference views comparing current branch to the base branch",
-	Long: `Renders difference views comparing current branch to the base branch`,
-	Run: func(cmd *cobra.Command, args []string) {
+	Use:   "renderDiff <base-branch> <compare-branch>",
+	Short: "Renders difference views comparing two git branches",
+	Long: `Renders one diagram per view showing how package dependencies changed from
+<base-branch> to <compare-branch>.
+
+Links where the number of dependencies increased are green, links where it
+decreased are red. Each link is labelled with the dependency count on
+<compare-branch> followed by the change, e.g. "3 (+1)" or "0 (-2)".
+
+Both branches are checked out into temporary git worktrees, so your working
+tree is never touched. No cache is read or written.`,
+	Args: cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true // usage text is noise for runtime errors
+		baseRef, headRef := args[0], args[1]
+		configPath, _ := cmd.Flags().GetString("config")
+
+		cfg, err := input.Load(configPath)
+		if err != nil {
+			return fmt.Errorf("loading configuration: %w", err)
+		}
+		absRoot, err := filepath.Abs(cfg.RootFolder)
+		if err != nil {
+			return fmt.Errorf("resolving root folder: %w", err)
+		}
+		// The root folder may be a subdirectory of the repo; remember where.
+		prefix, err := gitutils.Prefix(absRoot)
+		if err != nil {
+			return fmt.Errorf("%s is not inside a git repository: %w", absRoot, err)
+		}
+
+		baseGraphs, err := graphsAtRef(absRoot, prefix, baseRef, cfg)
+		if err != nil {
+			return err
+		}
+		headGraphs, err := graphsAtRef(absRoot, prefix, headRef, cfg)
+		if err != nil {
+			return err
+		}
+
+		for _, name := range slices.Sorted(maps.Keys(cfg.Views)) {
+			diff := graph.Compare(baseGraphs[name], headGraphs[name])
+			title := fmt.Sprintf("%s (%s vs %s)", name, baseRef, headRef)
+			if err := mermaid.RenderDiff(diff, title, cfg.SaveLocation, name+"_diff"); err != nil {
+				return fmt.Errorf("saving diagram for %s: %w", name, err)
+			}
+
+			var up, down int
+			for _, e := range diff.Edges {
+				if d := e.Delta(); d > 0 {
+					up++
+				} else if d < 0 {
+					down++
+				}
+			}
+			Sugar.Infof("%s: %d links increased, %d decreased", name, up, down)
+		}
+		return nil
 	},
+}
+
+// graphsAtRef checks ref out into a temporary worktree, parses every view's files
+// there and returns one graph per view. It uses a throwaway in-memory cache purely
+// for its parse-and-build logic; nothing is loaded from or saved to disk.
+func graphsAtRef(repoDir, prefix, ref string, cfg *input.Input) (map[string]*graph.Graph, error) {
+	wt, cleanup, err := gitutils.AddWorktree(repoDir, ref)
+	if err != nil {
+		return nil, fmt.Errorf("checking out %s: %w", ref, err)
+	}
+	defer cleanup()
+
+	root := filepath.Join(wt, filepath.FromSlash(prefix))
+	graphs := make(map[string]*graph.Graph, len(cfg.Views))
+
+	if _, err := os.Stat(root); err != nil {
+		// The root folder doesn't exist on this ref: treat it as empty.
+		Sugar.Warnf("%s: root folder not present, treating as empty", ref)
+		for name := range cfg.Views {
+			graphs[name] = graph.NewGraph()
+		}
+		return graphs, nil
+	}
+
+	viewFiles := make(map[string][]string, len(cfg.Views))
+	union := make(map[string]bool)
+	for name, view := range cfg.Views {
+		files, err := input.GetFiles(&view, root)
+		if err != nil {
+			return nil, fmt.Errorf("getting files for %s on %s: %w", name, ref, err)
+		}
+		for i, f := range files {
+			files[i] = filepath.ToSlash(filepath.Clean(f))
+			union[files[i]] = true
+		}
+		viewFiles[name] = files
+	}
+
+	Sugar.Infof("parsing %s", ref)
+	c := &caching.Cache{}
+	if err := c.Refresh(root, slices.Sorted(maps.Keys(union)), cfg.RunCommand, true); err != nil {
+		return nil, fmt.Errorf("parsing %s: %w", ref, err)
+	}
+	for name, files := range viewFiles {
+		graphs[name] = c.Graph(files)
+	}
+	return graphs, nil
 }
 
 func init() {
 	rootCmd.AddCommand(renderDiffCmd)
+	renderDiffCmd.Flags().StringP("config", "c", "archlens.json", "Path to the archlens.json configuration file")
 }
