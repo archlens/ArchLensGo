@@ -24,6 +24,7 @@ to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// probably move this and make it a bit more generalized
 		p, _ := cmd.Flags().GetBool("parse-full")
+		markdown, _ := cmd.Flags().GetBool("markdown")
 
 		var configPath string
 		if len(args) == 0 {
@@ -74,7 +75,7 @@ to quickly create a Cobra application.`,
 				continue
 			}
 			g := cache.Graph(files)
-			mermaid.Render(g, name, res.SaveLocation)
+			mermaid.Render(g, name, res.SaveLocation, markdown)
 			Sugar.Infof("%s: %d nodes, %d edges", name, g.TotalNodes, g.TotalEdges)
 		}
 
@@ -87,4 +88,5 @@ to quickly create a Cobra application.`,
 func init() {
 	rootCmd.AddCommand(renderCmd)
 	renderCmd.Flags().BoolP("parse-full", "p", false, "A flag to fully parse any project again even if cache is present")
+	renderCmd.Flags().Bool("markdown", false, "Export diagrams in markdown files")
 }

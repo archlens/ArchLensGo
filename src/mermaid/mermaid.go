@@ -59,8 +59,14 @@ func FlowchartString(g *graph.Graph, title string) string {
 }
 
 // Render writes the mermaid diagram to a file specified by the archlens.json file
-func Render(g *graph.Graph, title string, diagramLocation string) {
-	err := FromGraph(g, title).RenderToFile(filepath.Join(diagramLocation, title))
+func Render(g *graph.Graph, title string, diagramLocation string, markdown bool) {
+	diagram := FromGraph(g, title)
+	path := filepath.Join(diagramLocation, title)
+	if markdown {
+		diagram.EnableMarkdownFence()
+		path = path + ".md"
+	}
+	err := diagram.RenderToFile(path)
 	if err != nil {
 		panic("diagram could not be saved to location: " + err.Error())
 	}
