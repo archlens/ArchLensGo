@@ -28,21 +28,6 @@ type Edge struct {
 	Count uint
 }
 
-// EdgeDiff is one dependency edge (From depends on To) in two versions of a graph.
-// Before or After is 0 when the edge only exists in one of them.
-type EdgeDiff struct {
-	From   string
-	To     string
-	Before uint
-	After  uint
-}
-
-// Diff is the union of two graphs with per-edge before/after counts.
-type Diff struct {
-	Nodes []string   // sorted
-	Edges []EdgeDiff // sorted by (From, To)
-}
-
 func NewGraph() *Graph {
 	return &Graph{
 		nodes:      map[string]*node{},
@@ -204,40 +189,4 @@ func (g *Graph) AddSuccessors(source string, successors ...string) error {
 		sourceNode.weights[successorNode]++
 	}
 	return nil
-}
-
-// Delta is the change in the number of dependencies (positive = more).
-func (e EdgeDiff) Delta() int { return int(e.After) - int(e.Before) }
-
-// Compare diffs head against base: Before comes from base, After from head.
-func Compare(base, head *Graph) *Diff {
-	nodes := map[string]struct{}{}
-	for _, g := range []*Graph{base, head} {
-		for _, n := range g.GetNodeNames() {
-			nodes[n] = struct{}{}
-		}
-	}
-
-	type key struct{ from, to string }
-	byKey := map[key]*EdgeDiff{}
-	for _, e := range base.Edges() {
-		byKey[key{e.From, e.To}] = &EdgeDiff{From: e.From, To: e.To, Before: e.Count}
-	}
-	for _, e := range head.Edges() {
-		k := key{e.From, e.To}
-		if d, ok := byKey[k]; ok {
-			d.After = e.Count
-		} else {
-			byKey[k] = &EdgeDiff{From: e.From, To: e.To, After: e.Count}
-		}
-	}
-
-	edges := make([]EdgeDiff, 0, len(byKey))
-	for _, d := range byKey {
-		edges = append(edges, *d)
-	}
-	slices.SortFunc(edges, func(a, b EdgeDiff) int {
-		return cmp.Or(cmp.Compare(a.From, b.From), cmp.Compare(a.To, b.To))
-	})
-	return &Diff{Nodes: slices.Sorted(maps.Keys(nodes)), Edges: edges}
 }
