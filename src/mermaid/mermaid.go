@@ -1,13 +1,21 @@
 package mermaid
 
 import (
+	"fmt"
+	"os"
 	"path"
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/TyphonHill/go-mermaid/diagrams/flowchart"
 	"github.com/archlens/ArchLens/graph"
+)
+
+const (
+	colorIncrease = "#2da44e" // green
+	colorDecrease = "#cf222e" // red
 )
 
 // labels maps each package to its display label: the last path segment, or the
@@ -64,4 +72,56 @@ func Render(g *graph.Graph, title string, diagramLocation string) {
 	if err != nil {
 		panic("diagram could not be saved to location: " + err.Error())
 	}
+}
+
+// diffLabel is the link text: the current count, plus the change when there is one.
+func diffLabel(e graph.EdgeDiff) string {
+	switch d := e.Delta(); {
+	case d > 0:
+		return fmt.Sprintf(`"%d (+%d)"`, e.After, d)
+	case d < 0:
+		return fmt.Sprintf(`"%d (-%d)"`, e.After, -d)
+	default:
+		return fmt.Sprintf(`"%d"`, e.After)
+	}
+}
+
+// DiffString converts a graph diff into a flowchart. Links whose dependency count
+// went up are green, links where it went down are red, unchanged links keep the
+// default style. The flowchart library has no linkStyle support, so those lines
+// are appended by hand (mermaid addresses links by their order of definition).
+func DiffString(d *graph.Diff, title string) string {
+	fc := flowchart.NewFlowchart()
+	fc.Title = title
+	fc.SetDirection(flowchart.FlowchartDirectionLeftRight)
+
+	lbl := labels(d.Nodes)
+	nodes := make(map[string]*flowchart.Node, len(d.Nodes))
+	for _, name := range d.Nodes {
+		nodes[name] = fc.AddNode(lbl[name])
+	}
+
+	var styles strings.Builder
+	for i, e := range d.Edges {
+		fc.AddLink(nodes[e.From], nodes[e.To]).SetText(diffLabel(e))
+
+		color := ""
+		if delta := e.Delta(); delta > 0 {
+			color = colorIncrease
+		} else if delta < 0 {
+			color = colorDecrease
+		}
+		if color != "" {
+			fmt.Fprintf(&styles, "    linkStyle %d stroke:%s,stroke-width:2px,color:%s\n", i, color, color)
+		}
+	}
+	return fc.String() + styles.String()
+}
+
+// RenderDiff writes the diff diagram to diagramLocation/fileName.
+func RenderDiff(d *graph.Diff, title, diagramLocation, fileName string) error {
+	if err := os.MkdirAll(diagramLocation, 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(diagramLocation, fileName), []byte(DiffString(d, title)), 0o644)
 }
