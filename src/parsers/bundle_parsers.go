@@ -9,7 +9,7 @@ import (
 
 // The parser sources are embedded into the binary at build time.
 //
-// go:embed can only reach files inside this package's directory tree, and it
+// go embed can only reach files inside this package's directory tree, and it
 // refuses any directory that contains a go.mod (that is a different module).
 // It would also be a problem to keep a `package main` ast_parser.go next to
 // this file, since it would be compiled into package parsers. So the Go
