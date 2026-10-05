@@ -17,10 +17,10 @@ import (
 
 // renderDiffCmd represents the renderDiff command
 var renderDiffCmd = &cobra.Command{
-	Use:   "renderDiff <base-branch> <compare-branch>",
+	Use:   "renderDiff [base-branch] <compare-branch>",
 	Short: "Renders difference views comparing two git branches",
 	Long: `Renders one diagram per view showing how package dependencies changed from
-<base-branch> to <compare-branch>.
+[base-branch] to <compare-branch>.
 
 Links where the number of dependencies increased are green, links where it
 decreased are red. Each link is labelled with the dependency count on
@@ -28,16 +28,31 @@ decreased are red. Each link is labelled with the dependency count on
 
 Both branches are checked out into temporary git worktrees, so your working
 tree is never touched. No cache is read or written.`,
-	Args: cobra.ExactArgs(2),
+	Args: cobra.RangeArgs(1, 2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true // usage text is noise for runtime errors
-		baseRef, headRef := args[0], args[1]
+		var baseRef, headRef string
+		if len(args) == 2 {
+			baseRef, headRef = args[0], args[1]
+		} else if len(args) == 1 {
+			headRef = args[0]
+		} else {
+			Sugar.Panicf("Too few args need minimum 1 arg: compare-branch")
+		}
+
 		configPath, _ := cmd.Flags().GetString("config")
 
 		cfg, err := input.Load(configPath)
 		if err != nil {
 			return fmt.Errorf("loading configuration: %w", err)
 		}
+
+		if baseRef == "" && cfg.Github.Branch != "" {
+			baseRef = cfg.Github.Branch
+		} else {
+			Sugar.Panicf("No baseRef defined in archlens.json and no base-branch given as input argument")
+		}
+
 		absRoot, err := filepath.Abs(cfg.RootFolder)
 		if err != nil {
 			return fmt.Errorf("resolving root folder: %w", err)
