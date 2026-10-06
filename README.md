@@ -98,7 +98,8 @@ Below is an example configuration for a Go project. It is however recommended to
 | `archlens init` | Creates the `archlens.json` config template |
 | `archlens init <language>` | Creates the aforementioned `archlens.json`, as well as creating the language specific ast_parser file |
 | `archlens render [/path/to/archlens.json]` | Renders all views defined in the config using the supplied `archlens.json` defaults to `.` |
-| `archlens render-diff [/path/to/archlens.json]` | Renders difference views comparing current branch to the base branch |
+| `archlens render-diff [/path/to/archlens.json]` | Renders difference views comparing current branch to the base branch NOT SUPPORTED YET |
+| `archlens render-diff <base-branch> <compare-branch> | Renders difference views between base branch and compare branch |
 
 ## Defining Views
 
