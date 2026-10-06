@@ -103,6 +103,8 @@ func pickLanguage(language, location string) {
 		if err != nil {
 			Sugar.Errorf("Problem bundling the ast_parser at location: %s\nwith error: %s",location ,err)
 		}
+	default: 
+		Sugar.Errorf("Language is not supported out of the box yet please create your own AST-parser using the specification on the github repository")
 	}
 }
 
