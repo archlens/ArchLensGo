@@ -1,7 +1,6 @@
 package graph
 
 import (
-	"cmp"
 	"maps"
 	"slices"
 )
@@ -66,11 +65,8 @@ func Compare(base, head *Graph) *Diff {
 	for _, d := range byKey {
 		edges = append(edges, *d)
 	}
-	slices.SortFunc(edges, func(a, b EdgeDiff) int {
-		return cmp.Or(cmp.Compare(a.From, b.From), cmp.Compare(a.To, b.To))
-	})
 	return &Diff{
-		Nodes:   slices.Sorted(maps.Keys(nodes)),
+		Nodes:   slices.Collect(maps.Keys(nodes)),
 		Edges:   edges,
 		Added:   added,
 		Removed: removed,

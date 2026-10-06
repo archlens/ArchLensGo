@@ -1,6 +1,7 @@
 package mermaid
 
 import (
+	"cmp"
 	"path"
 	"path/filepath"
 	"slices"
@@ -46,7 +47,12 @@ func FromGraph(g *graph.Graph, title string) *flowchart.Flowchart {
 		nodes[name] = fc.AddNode(lbl[name])
 	}
 
-	for _, e := range g.Edges() {
+	// Sort edges to ensure same diagram gets generated when using same data.
+	edges := g.Edges()
+	slices.SortFunc(edges, func(a, b graph.Edge) int {
+		return cmp.Or(cmp.Compare(a.From, b.From), cmp.Compare(a.To, b.To))
+	})
+	for _, e := range edges {
 		link := fc.AddLink(nodes[e.From], nodes[e.To])
 		link.SetText(strconv.FormatUint(uint64(e.Count), 10))
 	}
