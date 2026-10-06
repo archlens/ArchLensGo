@@ -117,7 +117,7 @@ Make sure you are on a feature branch (not the base branch), then run:
 archlens render-diff
 ```
 
-This generates diagrams only for views that have actual changes. If there are no differences, a diagram without highlights is still generated.
+If there are no differences, a diagram without highlights is still generated.
 
 Diff output indicates:
 
