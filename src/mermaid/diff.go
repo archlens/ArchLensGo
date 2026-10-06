@@ -1,9 +1,11 @@
 package mermaid
 
 import (
+	"cmp"
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/TyphonHill/go-mermaid/diagrams/flowchart"
@@ -59,7 +61,9 @@ func DiffString(d *graph.Diff, title string) string {
 
 	lbl := labels(d.Nodes)
 	nodes := make(map[string]*flowchart.Node, len(d.Nodes))
-	for _, name := range d.Nodes {
+	graphNodes := d.Nodes
+	slices.Sort(graphNodes)
+	for _, name := range graphNodes {
 		nodes[name] = fc.AddNode(lbl[name])
 		if st := nodeStyle(d, name); st != nil {
 			nodes[name].SetStyle(st)
@@ -67,6 +71,10 @@ func DiffString(d *graph.Diff, title string) string {
 	}
 
 	var styles strings.Builder
+	edges := d.Edges
+	slices.SortFunc(edges, func(a, b graph.EdgeDiff) int {
+		return cmp.Or(cmp.Compare(a.From, b.From), cmp.Compare(a.To, b.To))
+	})
 	for i, e := range d.Edges {
 		fc.AddLink(nodes[e.From], nodes[e.To]).SetText(diffLabel(e))
 

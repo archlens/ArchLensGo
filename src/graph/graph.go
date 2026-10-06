@@ -1,7 +1,6 @@
 package graph
 
 import (
-	"cmp"
 	"errors"
 	"maps"
 	"slices"
@@ -23,8 +22,8 @@ type node struct {
 
 // Edge is a directed edge: From depends on To.
 type Edge struct {
-	From string
-	To   string
+	From  string
+	To    string
 	Count uint
 }
 
@@ -95,7 +94,7 @@ func (g *Graph) RemoveNodes(nodes ...string) {
 	}
 }
 
-// Edges returns every edge in the graph, sorted by (From, To).
+// Edges returns every edge in the graph.
 func (g *Graph) Edges() []Edge {
 	edges := make([]Edge, 0, g.TotalEdges)
 	for name, n := range g.nodes {
@@ -103,9 +102,6 @@ func (g *Graph) Edges() []Edge {
 			edges = append(edges, Edge{From: name, To: succ, Count: n.weights[succ]})
 		}
 	}
-	slices.SortFunc(edges, func(a, b Edge) int {
-		return cmp.Or(cmp.Compare(a.From, b.From), cmp.Compare(a.To, b.To))
-	})
 	return edges
 }
 
