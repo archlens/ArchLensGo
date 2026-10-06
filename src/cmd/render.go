@@ -1,9 +1,7 @@
 package cmd
 
 import (
-	"maps"
 	"path/filepath"
-	"slices"
 
 	"github.com/archlens/ArchLens/caching"
 	"github.com/archlens/ArchLens/input"
@@ -49,7 +47,7 @@ to quickly create a Cobra application.`,
 		cache := caching.LoadCache(cachePath)
 
 		viewFiles := make(map[string][]string)
-		union := make(map[string]bool)
+		union := make(map[string]struct{})
 		for name, view := range res.Views {
 			files, err := input.GetFiles(&view, res.RootFolder)
 			if err != nil {
@@ -58,12 +56,12 @@ to quickly create a Cobra application.`,
 			}
 			for i, f := range files {
 				files[i] = filepath.ToSlash(filepath.Clean(f))
-				union[files[i]] = true
+				union[files[i]] = struct{}{}
 			}
 			viewFiles[name] = files
 		}
 
-		if err := cache.Refresh(absRoot, slices.Sorted(maps.Keys(union)), res.RunCommand, p); err != nil {
+		if err := cache.Refresh(absRoot, union, res.RunCommand, p); err != nil {
 			Sugar.Errorf("Error refreshing cache: %v", err)
 			return
 		}

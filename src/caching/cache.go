@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -71,13 +72,13 @@ func gitHead(root string) (string, error) {
 }
 
 // Refresh brings the cache up to date for files, which must be sorted and unique.
-func (c *Cache) Refresh(root string, files []string, runCommand string, reParseFlag bool) error {
+func (c *Cache) Refresh(root string, files map[string]struct{}, runCommand string, reParseFlag bool) error {
 	head, herr := gitHead(root)
 	changes, cerr := gitChanges(root, c.Commit)
 
 	// Reparse everything if git can't tell us what changed, or if the set of
 	// files changed (an added or removed file can change how imports resolve).
-	full := herr != nil || cerr != nil || c.Commit == "" || !slices.Equal(c.Known, files) || reParseFlag
+	full := herr != nil || cerr != nil || c.Commit == "" || !c.sameFile(files) || reParseFlag
 
 	toParse := map[string]bool{}
 	if !full {
@@ -90,7 +91,7 @@ func (c *Cache) Refresh(root string, files []string, runCommand string, reParseF
 	}
 
 	var list []string
-	for _, f := range files {
+	for f, _ := range files {
 		if _, cached := c.Files[f]; full || toParse[f] || !cached {
 			list = append(list, f)
 		}
@@ -102,6 +103,7 @@ func (c *Cache) Refresh(root string, files []string, runCommand string, reParseF
 	}
 	for _, r := range parsers.GetASTs(list, root, runCommand) {
 		if r.Err != nil {
+			// TODO: Should abort instead of continuing
 			delete(c.Files, r.File) // not cached, so it's retried next run
 			Sugar.Errorf("%s: %v", r.File, r.Err)
 			continue
@@ -109,20 +111,16 @@ func (c *Cache) Refresh(root string, files []string, runCommand string, reParseF
 		c.Files[r.File] = Entry{r.AST.Package, r.AST.Dependencies}
 	}
 
-	want := make(map[string]bool, len(files))
-	for _, f := range files {
-		want[f] = true
-	}
 	for f := range c.Files {
-		if !want[f] {
+		if _, ok := files[f]; !ok {
 			delete(c.Files, f)
 		}
 	}
 
-	c.Commit, c.Known, c.Dirty = head, files, nil
+	c.Commit, c.Known, c.Dirty = head, slices.Sorted(maps.Keys(files)), nil
 	if dirty, err := gitChanges(root, head); err == nil {
 		for _, p := range dirty {
-			if want[p] {
+			if _, ok := files[p]; ok {
 				c.Dirty = append(c.Dirty, p)
 			}
 		}
@@ -188,4 +186,16 @@ func ParserID(script string) (string, error) {
 	}
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:]), nil
+}
+
+func (c *Cache) sameFile(files map[string]struct{}) bool {
+	if len(files) != len(c.Known) {
+		return false
+	}
+	for _, file  := range c.Known {
+		if _, ok := files[file]; !ok {
+			return false
+		}
+	}
+	return true
 }

@@ -2,10 +2,8 @@ package cmd
 
 import (
 	"fmt"
-	"maps"
 	"os"
 	"path/filepath"
-	"slices"
 
 	"github.com/archlens/ArchLens/caching"
 	"github.com/archlens/ArchLens/gitutils"
@@ -72,7 +70,7 @@ tree is never touched. No cache is read or written.`,
 			return err
 		}
 
-		for _, name := range slices.Sorted(maps.Keys(cfg.Views)) {
+		for name, _ := range cfg.Views {
 			diff := graph.Compare(baseGraphs[name], headGraphs[name])
 			title := fmt.Sprintf("%s (%s vs %s)", name, baseRef, headRef)
 			if err := mermaid.RenderDiff(diff, title, cfg.SaveLocation, name+"_diff"); err != nil {
@@ -116,7 +114,7 @@ func graphsAtRef(repoDir, prefix, ref string, cfg *input.Input) (map[string]*gra
 	}
 
 	viewFiles := make(map[string][]string, len(cfg.Views))
-	union := make(map[string]bool)
+	union := make(map[string]struct{})
 	for name, view := range cfg.Views {
 		files, err := input.GetFiles(&view, root)
 		if err != nil {
@@ -124,14 +122,14 @@ func graphsAtRef(repoDir, prefix, ref string, cfg *input.Input) (map[string]*gra
 		}
 		for i, f := range files {
 			files[i] = filepath.ToSlash(filepath.Clean(f))
-			union[files[i]] = true
+			union[files[i]] = struct{}{}
 		}
 		viewFiles[name] = files
 	}
 
 	Sugar.Infof("parsing %s", ref)
 	c := &caching.Cache{}
-	if err := c.Refresh(root, slices.Sorted(maps.Keys(union)), cfg.RunCommand, true); err != nil {
+	if err := c.Refresh(root, union, cfg.RunCommand, true); err != nil {
 		return nil, fmt.Errorf("parsing %s: %w", ref, err)
 	}
 	for name, files := range viewFiles {
