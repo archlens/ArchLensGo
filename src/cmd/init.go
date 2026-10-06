@@ -48,7 +48,6 @@ var initCmd = &cobra.Command{
 			language = args[0]
 		}
 
-		// check whether archlens.json is a valid folder location
 		path := "./archlens.json"
 		if l != "" {
 			path = l
