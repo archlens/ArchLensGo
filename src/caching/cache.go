@@ -91,7 +91,7 @@ func (c *Cache) Refresh(root string, files map[string]struct{}, runCommand strin
 	}
 
 	var list []string
-	for f, _ := range files {
+	for f := range files {
 		if _, cached := c.Files[f]; full || toParse[f] || !cached {
 			list = append(list, f)
 		}

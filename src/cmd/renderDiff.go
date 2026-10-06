@@ -70,7 +70,7 @@ tree is never touched. No cache is read or written.`,
 			return err
 		}
 
-		for name, _ := range cfg.Views {
+		for name := range cfg.Views {
 			diff := graph.Compare(baseGraphs[name], headGraphs[name])
 			title := fmt.Sprintf("%s (%s vs %s)", name, baseRef, headRef)
 			if err := mermaid.RenderDiff(diff, title, cfg.SaveLocation, name+"_diff"); err != nil {
