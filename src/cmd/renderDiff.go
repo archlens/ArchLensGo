@@ -45,10 +45,10 @@ tree is never touched. No cache is read or written.`,
 			return fmt.Errorf("loading configuration: %w", err)
 		}
 
-		if baseRef == "" && cfg.Github.Branch != "" {
-			baseRef = cfg.Github.Branch
-		} else {
+		if baseRef == "" && cfg.Github.Branch == "" {
 			Sugar.Panicf("No baseRef defined in archlens.json and no base-branch given as input argument")
+		} else if baseRef == "" {
+			baseRef = cfg.Github.Branch
 		}
 
 		absRoot, err := filepath.Abs(cfg.RootFolder)
