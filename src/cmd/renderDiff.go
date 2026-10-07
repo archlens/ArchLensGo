@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/archlens/ArchLens/caching"
-	"github.com/archlens/ArchLens/gitutils"
+	"github.com/archlens/ArchLens/utils/gitutils"
 	"github.com/archlens/ArchLens/graph"
 	"github.com/archlens/ArchLens/input"
 	"github.com/archlens/ArchLens/mermaid"
