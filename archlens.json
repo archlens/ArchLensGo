@@ -1,12 +1,12 @@
 {
     "name": "Archlens",
-    "rootFolder": "/home/august/ITU/msc3/research_project/ArchLensGo/src",
+    "rootFolder": "./src",
     "github": {
         "url": "https://github.com/archlens/ArchLens",
-        "branch": "master"
+        "branch": "main"
     },
     "saveLocation": "./diagrams/",
-    "runCommand": "go run /Users/slugboi/Documents/ITU/MsC/3_sem/RPROJ/ArchLensGo/ast_parsers/go/main.go",
+    "runCommand": "go run ./ast_parsers/go/ast_parser.go",
     "views": {
         "completeView": {
             "include": [
