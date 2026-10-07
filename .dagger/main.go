@@ -56,20 +56,26 @@ func (m *ArchLensGo) Build() *dagger.Directory {
 
 	golang := m.BuildEnv()
 
+
 	for _, goos := range gooses {
 		for _, goarch := range goarches {
 			// create directory for each OS and architecture
-			path := fmt.Sprintf("build/%s-%s/", goos, goarch)
+			target := fmt.Sprintf("%s-%s", goos, goarch)
+			buildDir := "build/" + target + "/"
+
+			bin := "archlens"
+				if goos == "windows" {
+					bin += ".exe"
+			}
 
 			// build artifact
 			build := golang.
 				WithEnvVariable("GOOS", goos).
 				WithEnvVariable("GOARCH", goarch).
-				WithExec([]string{"go", "build", "-o", path + "archlens"})
+				WithExec([]string{"go", "build", "-o", buildDir + bin})
 
 			// add build to outputs
-			outputs = outputs.
-				WithDirectory(path, build.Directory(path))
+			outputs = outputs.WithDirectory(target, build.Directory(buildDir))
 		}
 	}
 
