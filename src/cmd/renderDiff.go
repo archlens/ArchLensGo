@@ -39,16 +39,17 @@ tree is never touched. No cache is read or written.`,
 		}
 
 		configPath, _ := cmd.Flags().GetString("config")
+		markdown, _ := cmd.Flags().GetBool("markdown")
 
 		cfg, err := input.Load(configPath)
 		if err != nil {
 			return fmt.Errorf("loading configuration: %w", err)
 		}
 
-		if baseRef == "" && cfg.Github.Branch != "" {
-			baseRef = cfg.Github.Branch
-		} else {
+		if baseRef == "" && cfg.Github.Branch == "" {
 			Sugar.Panicf("No baseRef defined in archlens.json and no base-branch given as input argument")
+		} else if baseRef == "" {
+			baseRef = cfg.Github.Branch
 		}
 
 		absRoot, err := filepath.Abs(cfg.RootFolder)
@@ -73,7 +74,7 @@ tree is never touched. No cache is read or written.`,
 		for name := range cfg.Views {
 			diff := graph.Compare(baseGraphs[name], headGraphs[name])
 			title := fmt.Sprintf("%s (%s vs %s)", name, baseRef, headRef)
-			if err := mermaid.RenderDiff(diff, title, cfg.SaveLocation, name+"_diff"); err != nil {
+			if err := mermaid.RenderDiff(diff, title, cfg.SaveLocation, name+"_diff", markdown); err != nil {
 				return fmt.Errorf("saving diagram for %s: %w", name, err)
 			}
 
@@ -141,4 +142,5 @@ func graphsAtRef(repoDir, prefix, ref string, cfg *input.Input) (map[string]*gra
 func init() {
 	rootCmd.AddCommand(renderDiffCmd)
 	renderDiffCmd.Flags().StringP("config", "c", "archlens.json", "Path to the archlens.json configuration file")
+	renderDiffCmd.Flags().Bool("markdown", false, "Export diagrams in markdown files")
 }

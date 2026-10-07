@@ -92,9 +92,14 @@ func DiffString(d *graph.Diff, title string) string {
 }
 
 // RenderDiff writes the diff diagram to diagramLocation/fileName.
-func RenderDiff(d *graph.Diff, title, diagramLocation, fileName string) error {
+func RenderDiff(d *graph.Diff, title, diagramLocation, fileName string, markdown bool) error {
 	if err := os.MkdirAll(diagramLocation, 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(diagramLocation, fileName), []byte(DiffString(d, title)), 0o644)
+	diagram := DiffString(d, title)
+	if markdown {
+		diagram = "```mermaid\n" + diagram  + "```"
+		fileName += ".md"
+	}
+	return os.WriteFile(filepath.Join(diagramLocation, fileName), []byte(diagram), 0o644)
 }
