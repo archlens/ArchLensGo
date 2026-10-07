@@ -39,16 +39,18 @@ jobs:
           version: "latest"
       - name: Package binaries
         run: |
-          mkdir -p dist
+          set -euo pipefail
+          dist="$PWD/dist"
+          mkdir -p "$dist"
           for dir in build/*/; do
             target=$(basename "$dir")
             if [[ "$target" == windows-* ]]; then
-              (cd "$dir" && zip -r "../../dist/archlens-${target}.zip" .)
+              (cd "$dir" && zip -r "$dist/archlens-${target}.zip" .)
             else
-              tar -czvf "dist/archlens-${target}.tar.gz" -C "$dir" .
+              tar -czvf "$dist/archlens-${target}.tar.gz" -C "$dir" .
             fi
           done
-          ls -la dist/
+          ls -la "$dist"
       - name: Auto Changelog
         uses: ardalanamini/auto-changelog@v4.0.1
         id  : changelog
