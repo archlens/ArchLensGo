@@ -6,10 +6,12 @@ import (
 	"path/filepath"
 
 	"github.com/archlens/ArchLens/caching"
+	"github.com/archlens/ArchLens/export"
+	"github.com/archlens/ArchLens/export/mermaid"
+	"github.com/archlens/ArchLens/export/json"
 	"github.com/archlens/ArchLens/gitutils"
 	"github.com/archlens/ArchLens/graph"
 	"github.com/archlens/ArchLens/input"
-	"github.com/archlens/ArchLens/mermaid"
 	"github.com/spf13/cobra"
 )
 
@@ -40,6 +42,17 @@ tree is never touched. No cache is read or written.`,
 
 		configPath, _ := cmd.Flags().GetString("config")
 		markdown, _ := cmd.Flags().GetBool("markdown")
+		format, _ := cmd.Flags().GetString("format")
+
+		var exporter export.Exporter
+		switch format {
+		case "mermaid":
+			exporter = mermaid.NewExporter(markdown)
+		case "json":
+			exporter = json.Exporter{}
+		default:
+			Sugar.Panicf("'%s' is not a valid export format\n", format)
+		}
 
 		cfg, err := input.Load(configPath)
 		if err != nil {
@@ -74,10 +87,12 @@ tree is never touched. No cache is read or written.`,
 		for name := range cfg.Views {
 			diff := graph.Compare(baseGraphs[name], headGraphs[name])
 			title := fmt.Sprintf("%s (%s vs %s)", name, baseRef, headRef)
-			if err := mermaid.RenderDiff(diff, title, cfg.SaveLocation, name+"_diff", markdown); err != nil {
-				return fmt.Errorf("saving diagram for %s: %w", name, err)
+			output := exporter.ExportDiff(diff, title)
+			path, err := export.Save(exporter, cfg.SaveLocation, name+"_diff", output)
+			if err != nil {
+				return err
 			}
-
+			Sugar.Infof("Saved view %s to file %s\n", name, path)
 			var up, down int
 			for _, e := range diff.Edges {
 				if d := e.Delta(); d > 0 {
@@ -143,4 +158,5 @@ func init() {
 	rootCmd.AddCommand(renderDiffCmd)
 	renderDiffCmd.Flags().StringP("config", "c", "archlens.json", "Path to the archlens.json configuration file")
 	renderDiffCmd.Flags().Bool("markdown", false, "Export diagrams in markdown files")
+	renderDiffCmd.Flags().StringP("format", "f", "mermaid", "Set the output format for archlens [mermaid|json]. ")
 }

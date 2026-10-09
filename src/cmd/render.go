@@ -4,8 +4,9 @@ import (
 	"path/filepath"
 
 	"github.com/archlens/ArchLens/caching"
+	"github.com/archlens/ArchLens/export"
+	"github.com/archlens/ArchLens/export/mermaid"
 	"github.com/archlens/ArchLens/input"
-	"github.com/archlens/ArchLens/mermaid"
 	"github.com/spf13/cobra"
 )
 
@@ -23,12 +24,24 @@ to quickly create a Cobra application.`,
 		// probably move this and make it a bit more generalized
 		p, _ := cmd.Flags().GetBool("parse-full")
 		markdown, _ := cmd.Flags().GetBool("markdown")
+		format, _ := cmd.Flags().GetString("format")
 
 		var configPath string
 		if len(args) == 0 {
 			configPath = "archlens.json"
 		} else {
 			configPath = args[0]
+		}
+
+		var exporter export.Exporter
+		switch format {
+		case "mermaid":
+			exporter = mermaid.NewExporter(markdown)
+		case "json":
+			Sugar.Errorln("json export is not implemented yet")
+		default:
+			Sugar.Errorf("'%s' is not a valid export format\n", format)
+			return
 		}
 
 		res, err := input.Load(configPath)
@@ -73,8 +86,12 @@ to quickly create a Cobra application.`,
 				continue
 			}
 			g := cache.Graph(files)
-			mermaid.Render(g, name, res.SaveLocation, markdown)
-			Sugar.Infof("%s: %d nodes, %d edges", name, g.TotalNodes, g.TotalEdges)
+			output := exporter.ExportGraph(g, name)
+			path, err := export.Save(exporter, res.SaveLocation, name, output)
+			if err != nil {
+				Sugar.Errorf("Failed to save export: %v\n", err)
+			}
+			Sugar.Infof("%s: %d nodes, %d edges, location: %s", name, g.TotalNodes, g.TotalEdges, path)
 		}
 
 		if err := cache.Save(cachePath); err != nil {
@@ -87,4 +104,5 @@ func init() {
 	rootCmd.AddCommand(renderCmd)
 	renderCmd.Flags().BoolP("parse-full", "p", false, "A flag to fully parse any project again even if cache is present")
 	renderCmd.Flags().Bool("markdown", false, "Export diagrams in markdown files")
+	renderCmd.Flags().StringP("format", "f", "mermaid", "Set the output format for archlens [mermaid|json]. ")
 }
