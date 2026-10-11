@@ -14,6 +14,7 @@ type Graph struct {
 
 type node struct {
 	name       string
+	path       string
 	incoming   uint
 	outgoing   uint
 	successors map[string]*node // Name of node to node pointer
@@ -27,6 +28,11 @@ type Edge struct {
 	Count uint
 }
 
+type NodeSpec struct {
+	Name string
+	Path string
+}
+
 func NewGraph() *Graph {
 	return &Graph{
 		nodes:      map[string]*node{},
@@ -35,9 +41,10 @@ func NewGraph() *Graph {
 	}
 }
 
-func newNode(name string) *node {
+func newNode(name, path string) *node {
 	return &node{
 		name:       name,
+		path:       path,
 		incoming:   0,
 		outgoing:   0,
 		successors: map[string]*node{},
@@ -50,10 +57,10 @@ func (g *Graph) GetNodeNames() []string {
 }
 
 // Add nodes to graph. Nodes that already are in the graph are ignored
-func (g *Graph) AddNodes(nodes ...string) {
-	for _, nodeName := range nodes {
-		if _, ok := g.nodes[nodeName]; !ok {
-			g.nodes[nodeName] = newNode(nodeName)
+func (g *Graph) AddNodes(nodes ...NodeSpec) {
+	for _, node := range nodes {
+		if _, ok := g.nodes[node.Name]; !ok {
+			g.nodes[node.Name] = newNode(node.Name, node.Path)
 			g.TotalNodes++
 		}
 	}
@@ -107,30 +114,30 @@ func (g *Graph) Edges() []Edge {
 
 // AddPackage records that one file in pkg imports deps. Call it once per parsed
 // file: nodes are created as needed and each pkg -> dep edge weight goes up by 1.
-func (g *Graph) AddPackage(pkg string, deps ...string) {
+func (g *Graph) AddPackage(pkg NodeSpec, deps ...NodeSpec) {
 	g.AddNodes(pkg)
 
 	seen := make(map[string]struct{}, len(deps))
-	filtered := make([]string, 0, len(deps))
+	filtered := make([]NodeSpec, 0, len(deps))
 	for _, d := range deps {
 		if d == pkg {
 			// No loops
 			continue
 		}
-		if _, dup := seen[d]; dup {
+		if _, dup := seen[d.Name]; dup {
 			continue
 		}
-		seen[d] = struct{}{}
+		seen[d.Name] = struct{}{}
 		filtered = append(filtered, d)
 	}
-	_ = g.AddSuccessors(pkg, filtered...)
+	_ = g.AddSuccessors(pkg.Name, filtered...)
 }
 
 // Adds nodes as predecessors to the source node. Predecessor nodes that
 // aren't already in the graph will be added.
 //
 // Returns an error if the source node doesn't exist in the graph
-func (g *Graph) AddPredecessors(source string, predecessors ...string) error {
+func (g *Graph) AddPredecessors(source string, predecessors ...NodeSpec) error {
 	var sourceNode *node
 	var ok bool
 	if sourceNode, ok = g.nodes[source]; !ok {
@@ -139,10 +146,10 @@ func (g *Graph) AddPredecessors(source string, predecessors ...string) error {
 
 	var preNode *node
 	for _, predecessorNode := range predecessors {
-		if preNode, ok = g.nodes[predecessorNode]; !ok {
+		if preNode, ok = g.nodes[predecessorNode.Name]; !ok {
 			// Create and add node if not in graph
-			preNode = newNode(predecessorNode)
-			g.nodes[predecessorNode] = preNode
+			preNode = newNode(predecessorNode.Name, predecessorNode.Path)
+			g.nodes[predecessorNode.Name] = preNode
 			g.TotalNodes++
 		}
 
@@ -161,7 +168,7 @@ func (g *Graph) AddPredecessors(source string, predecessors ...string) error {
 // aren't already in the graph will be added.
 //
 // Returns an error if the source node doesn't exist in the graph
-func (g *Graph) AddSuccessors(source string, successors ...string) error {
+func (g *Graph) AddSuccessors(source string, successors ...NodeSpec) error {
 	var sourceNode *node
 	var ok bool
 	if sourceNode, ok = g.nodes[source]; !ok {
@@ -169,20 +176,20 @@ func (g *Graph) AddSuccessors(source string, successors ...string) error {
 	}
 	var sucNode *node
 	for _, successorNode := range successors {
-		if sucNode, ok = g.nodes[successorNode]; !ok {
+		if sucNode, ok = g.nodes[successorNode.Name]; !ok {
 			// Create and add node if not in graph
-			sucNode = newNode(successorNode)
-			g.nodes[successorNode] = sucNode
+			sucNode = newNode(successorNode.Name, successorNode.Path)
+			g.nodes[successorNode.Name] = sucNode
 			g.TotalNodes++
 		}
 
-		if _, ok = sourceNode.successors[successorNode]; !ok {
-			sourceNode.successors[successorNode] = sucNode
+		if _, ok = sourceNode.successors[successorNode.Name]; !ok {
+			sourceNode.successors[successorNode.Name] = sucNode
 			sucNode.incoming++
 			sourceNode.outgoing++
 			g.TotalEdges++
 		}
-		sourceNode.weights[successorNode]++
+		sourceNode.weights[successorNode.Name]++
 	}
 	return nil
 }
