@@ -70,6 +70,7 @@ func GetAST(filePath string, rootDir string, runCommand string) (*ASTNode, error
 	args := slices.Concat(parts[1:], []string{"-r", rootDir, filePath})
 
 	cmd := exec.Command(parts[0], args...)
+	cmd.Dir = rootDir
 
 	out, err := cmd.Output()
 	if err != nil {
