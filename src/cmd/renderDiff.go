@@ -40,6 +40,7 @@ tree is never touched. No cache is read or written.`,
 
 		configPath, _ := cmd.Flags().GetString("config")
 		markdown, _ := cmd.Flags().GetBool("markdown")
+		noCache, _ := cmd.Flags().GetBool("no-cache")
 
 		cfg, err := input.Load(configPath)
 		if err != nil {
@@ -62,11 +63,26 @@ tree is never touched. No cache is read or written.`,
 			return fmt.Errorf("%s is not inside a git repository: %w", absRoot, err)
 		}
 
-		baseGraphs, err := graphsAtRef(absRoot, prefix, baseRef, cfg)
+		// The cache lives next to archlens.json, so running from a subfolder
+		// still finds the same cache. A nil RefCache means caching is off.
+		var rc *caching.RefCache
+		if !noCache {
+			absCfg, err := filepath.Abs(configPath)
+			if err != nil {
+				return fmt.Errorf("resolving config path: %w", err)
+			}
+			rc = &caching.RefCache{
+				Dir:         filepath.Join(filepath.Dir(absCfg), ".archlens", "diff-cache"),
+				Keep:        6,
+				Fingerprint: caching.Fingerprint(Version, cfg.RunCommand),
+			}
+		}
+
+		baseGraphs, err := graphsAtRef(absRoot, prefix, baseRef, cfg, rc)
 		if err != nil {
 			return err
 		}
-		headGraphs, err := graphsAtRef(absRoot, prefix, headRef, cfg)
+		headGraphs, err := graphsAtRef(absRoot, prefix, headRef, cfg, rc)
 		if err != nil {
 			return err
 		}
@@ -95,7 +111,7 @@ tree is never touched. No cache is read or written.`,
 // graphsAtRef checks ref out into a temporary worktree, parses every view's files
 // there and returns one graph per view. It uses a throwaway in-memory cache purely
 // for its parse-and-build logic; nothing is loaded from or saved to disk.
-func graphsAtRef(repoDir, prefix, ref string, cfg *input.Input) (map[string]*graph.Graph, error) {
+func graphsAtRef(repoDir, prefix, ref string, cfg *input.Input, rc *caching.RefCache) (map[string]*graph.Graph, error) {
 	wt, cleanup, err := gitutils.AddWorktree(repoDir, ref)
 	if err != nil {
 		return nil, fmt.Errorf("checking out %s: %w", ref, err)
@@ -129,9 +145,19 @@ func graphsAtRef(repoDir, prefix, ref string, cfg *input.Input) (map[string]*gra
 	}
 
 	Sugar.Infof("parsing %s", ref)
+
 	c := &caching.Cache{}
-	if err := c.Refresh(root, union, cfg.RunCommand, true); err != nil {
+	reparse := true
+	if rc != nil {
+		c, reparse = rc.Load(root), false
+	}
+	if err := c.Refresh(root, union, cfg.RunCommand, reparse); err != nil {
 		return nil, fmt.Errorf("parsing %s: %w", ref, err)
+	}
+	if rc != nil {
+		if err := rc.Save(c); err != nil {
+			Sugar.Warnf("saving cache for %s: %v", ref, err)
+		}
 	}
 	for name, files := range viewFiles {
 		graphs[name] = c.Graph(files)
@@ -143,4 +169,5 @@ func init() {
 	rootCmd.AddCommand(renderDiffCmd)
 	renderDiffCmd.Flags().StringP("config", "c", "archlens.json", "Path to the archlens.json configuration file")
 	renderDiffCmd.Flags().Bool("markdown", false, "Export diagrams in markdown files")
+	renderDiffCmd.Flags().BoolP("no-cache", "n", false, "Runs the renderDiff without cache files thus allowing for full parsing")
 }
