@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strings"
 
 	"github.com/archlens/ArchLens/graph"
@@ -31,9 +32,17 @@ type Entry struct {
 
 type Cache struct {
 	Commit string           `json:"commit"`
+	Fingerprint string      `json:"fingerprint"`
 	Known  []string         `json:"known"` // files parsed at the last refresh (sorted)
 	Dirty  []string         `json:"dirty"` // files that differed from Commit at the last refresh
 	Files  map[string]Entry `json:"files"`
+}
+
+// RefCache keeps one Cache per commit as <Dir>/<sha>.json.
+type RefCache struct {
+	Dir         string
+	Keep        int    // newest files to keep; the rest are pruned on Save
+	Fingerprint string // changes when parse results could differ (ArchLens version, runCommand)
 }
 
 type Change struct {
@@ -198,4 +207,54 @@ func (c *Cache) sameFile(files map[string]struct{}) bool {
 		}
 	}
 	return true
+}
+
+func (r *RefCache) path(sha string) string {
+	return filepath.Join(r.Dir, sha+".json")
+}
+
+// Load returns the cached parse closest to the checkout at root, or an empty Cache.
+func (r *RefCache) Load(root string) *Cache {
+	best, bestN := &Cache{}, -1
+	files, _ := filepath.Glob(filepath.Join(r.Dir, "*.json"))
+	for _, f := range files {
+		cand := LoadCache(f)
+		if cand.Commit == "" || cand.Fingerprint != r.Fingerprint {
+			continue // empty, corrupt or from a different parser setup
+		}
+		changes, err := gitChanges(root, cand.Commit)
+		if err != nil {
+			continue // commit not in this repo
+		}
+		if bestN < 0 || len(changes) < bestN {
+			best, bestN = cand, len(changes)
+		}
+	}
+	return best
+}
+
+// Save stores c under its commit and prunes the oldest files beyond Keep.
+func (r *RefCache) Save(c *Cache) error {
+	if c.Commit == "" {
+		return nil // git couldn't tell us the commit, so there's nothing to key on
+	}
+	c.Fingerprint = r.Fingerprint
+	if err := c.Save(r.path(c.Commit)); err != nil {
+		return err
+	}
+	files, _ := filepath.Glob(filepath.Join(r.Dir, "*.json"))
+	sort.Slice(files, func(i, j int) bool {
+		a, _ := os.Stat(files[i])
+		b, _ := os.Stat(files[j])
+		return a != nil && b != nil && a.ModTime().After(b.ModTime())
+	})
+	for _, f := range files[min(r.Keep, len(files)):] {
+		_ = os.Remove(f)
+	}
+	return nil
+}
+
+func Fingerprint(version, runCommand string) string {
+	sum := sha256.Sum256([]byte(version + "\x00" + runCommand))
+	return hex.EncodeToString(sum[:8])
 }
