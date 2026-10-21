@@ -16,6 +16,7 @@ import (
 var template input.Input = input.Input {
 	Name: "ArchLens",	
 	RootFolder: ".",
+	RunCommand: "",
 	Github: input.Github{
 		Url: "https://github.com/archlens/ArchLens",
 		Branch: "master",
@@ -95,11 +96,13 @@ func pickLanguage(language, location string) {
 	language = strings.ToLower(language)
 	switch language {
 	case "python":
+		template.RunCommand = "python3 ./ast_parser/ast_parser.py"
 		err := parsers.BundlePython(location)
 		if err != nil {
 			Sugar.Errorf("Problem bundling the ast_parser at location: %s\nwith error: %s",location ,err)
 		}
 	case "go":
+		template.RunCommand = "go run ./ast_parser/ast_parser.go"
 		err := parsers.BundleGo(location)
 		if err != nil {
 			Sugar.Errorf("Problem bundling the ast_parser at location: %s\nwith error: %s",location ,err)
