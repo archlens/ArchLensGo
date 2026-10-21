@@ -20,8 +20,8 @@ func labels(names []string, rootName string) map[string]string {
 	}
 	out := make(map[string]string, len(names))
 	for _, n := range names {
-		switch {
-		case n == ".":
+		switch n {
+		case ".":
 			out[n] = rootName
 		default:
 			out[n] = n
