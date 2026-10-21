@@ -3,6 +3,7 @@ package utils
 import (
 	"os"
 
+	"github.com/archlens/ArchLens/utils/test"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -45,6 +46,8 @@ func NewPrettySugaredLogger() *zap.SugaredLogger {
 
 	// Build logger with caller & stacktrace options enabled
 	logger := zap.New(core, zap.AddCaller(), zap.AddStacktrace(zap.ErrorLevel))
-	
+
+	test.Hello()
+
 	return logger.Sugar()
 }
