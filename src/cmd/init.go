@@ -72,10 +72,11 @@ var initCmd = &cobra.Command{
 			return
 		}
 
-		data, err := json.Marshal(template)
+		data, err := json.MarshalIndent(template, "", "  ")
 		if err != nil {
 			panic(err)
 		}
+		data = append(data, '\n')
 
 		err = os.WriteFile(path, data, 0644)
 		if err != nil {
