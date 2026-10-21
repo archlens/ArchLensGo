@@ -13,7 +13,7 @@ import (
 
 // labels maps each package to its display label: the last path segment, or the
 // full path when two packages would otherwise look the same.
-func labels(names []string) map[string]string {
+func labels(names []string, rootName string) map[string]string {
 	count := make(map[string]int, len(names))
 	for _, n := range names {
 		count[path.Base(n)]++
@@ -22,25 +22,23 @@ func labels(names []string) map[string]string {
 	for _, n := range names {
 		switch {
 		case n == ".":
-			out[n] = "(root)"
-		case count[path.Base(n)] > 1:
-			out[n] = n // ambiguous, keep the full path
+			out[n] = rootName
 		default:
-			out[n] = path.Base(n)
+			out[n] = n
 		}
 	}
 	return out
 }
 
 // FromGraph converts a dependency graph into a flowchart (edge = "depends on").
-func FromGraph(g *graph.Graph, title string) *flowchart.Flowchart {
+func FromGraph(g *graph.Graph, title string, rootName string) *flowchart.Flowchart {
 	fc := flowchart.NewFlowchart()
 	fc.Title = title
 	fc.SetDirection(flowchart.FlowchartDirectionLeftRight)
 
 	names := g.GetNodeNames()
 	slices.Sort(names)
-	lbl := labels(names)
+	lbl := labels(names, rootName)
 
 	nodes := make(map[string]*flowchart.Node, len(names))
 	for _, name := range names {
@@ -60,13 +58,13 @@ func FromGraph(g *graph.Graph, title string) *flowchart.Flowchart {
 }
 
 // Returns the mermaid diagram from graph as a string
-func FlowchartString(g *graph.Graph, title string) string {
-	return FromGraph(g, title).String()
+func FlowchartString(g *graph.Graph, title string, rootName string) string {
+	return FromGraph(g, title, rootName).String()
 }
 
 // Render writes the mermaid diagram to a file specified by the archlens.json file
-func Render(g *graph.Graph, title string, diagramLocation string, markdown bool) {
-	diagram := FromGraph(g, title)
+func Render(g *graph.Graph, title string, diagramLocation string, markdown bool, rootName string) {
+	diagram := FromGraph(g, title, rootName)
 	path := filepath.Join(diagramLocation, title)
 	if markdown {
 		diagram.EnableMarkdownFence()

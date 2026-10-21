@@ -54,12 +54,12 @@ func diffLabel(e graph.EdgeDiff) string {
 // went up are green, links where it went down are red, unchanged links keep the
 // default style. The flowchart library has no linkStyle support, so those lines
 // are appended by hand (mermaid addresses links by their order of definition).
-func DiffString(d *graph.Diff, title string) string {
+func DiffString(d *graph.Diff, title string, rootName string) string {
 	fc := flowchart.NewFlowchart()
 	fc.Title = title
 	fc.SetDirection(flowchart.FlowchartDirectionLeftRight)
 
-	lbl := labels(d.Nodes)
+	lbl := labels(d.Nodes, rootName)
 	nodes := make(map[string]*flowchart.Node, len(d.Nodes))
 	graphNodes := d.Nodes
 	slices.Sort(graphNodes)
@@ -92,11 +92,11 @@ func DiffString(d *graph.Diff, title string) string {
 }
 
 // RenderDiff writes the diff diagram to diagramLocation/fileName.
-func RenderDiff(d *graph.Diff, title, diagramLocation, fileName string, markdown bool) error {
+func RenderDiff(d *graph.Diff, title, diagramLocation, fileName string, markdown bool, rootName string) error {
 	if err := os.MkdirAll(diagramLocation, 0o755); err != nil {
 		return err
 	}
-	diagram := DiffString(d, title)
+	diagram := DiffString(d, title, rootName)
 	if markdown {
 		diagram = "```mermaid\n" + diagram  + "```"
 		fileName += ".md"
