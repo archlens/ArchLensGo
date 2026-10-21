@@ -90,7 +90,7 @@ tree is never touched. No cache is read or written.`,
 		for name := range cfg.Views {
 			diff := graph.Compare(baseGraphs[name], headGraphs[name])
 			title := fmt.Sprintf("%s (%s vs %s)", name, baseRef, headRef)
-			if err := mermaid.RenderDiff(diff, title, cfg.SaveLocation, name+"_diff", markdown); err != nil {
+			if err := mermaid.RenderDiff(diff, title, cfg.SaveLocation, name+"_diff", markdown, cfg.Name); err != nil {
 				return fmt.Errorf("saving diagram for %s: %w", name, err)
 			}
 

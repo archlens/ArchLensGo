@@ -73,7 +73,7 @@ to quickly create a Cobra application.`,
 				continue
 			}
 			g := cache.Graph(files)
-			mermaid.Render(g, name, res.SaveLocation, markdown)
+			mermaid.Render(g, name, res.SaveLocation, markdown, res.Name)
 			Sugar.Infof("%s: %d nodes, %d edges", name, g.TotalNodes, g.TotalEdges)
 		}
 
