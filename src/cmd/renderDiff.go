@@ -15,7 +15,7 @@ import (
 
 // renderDiffCmd represents the renderDiff command
 var renderDiffCmd = &cobra.Command{
-	Use:   "renderDiff [base-branch] <compare-branch>",
+	Use:   "render-diff [base-branch] <compare-branch>",
 	Short: "Renders difference views comparing two git branches",
 	Long: `Renders one diagram per view showing how package dependencies changed from
 [base-branch] to <compare-branch>.
