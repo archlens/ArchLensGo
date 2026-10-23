@@ -22,6 +22,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: archlens/ArchLens-Action@v0.2.0-rc.1
+      - uses: archlens/ArchLens-Action@v0.3.0
         with:
           warm-cache: 'true'
+          preset: "go"
