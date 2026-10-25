@@ -94,21 +94,22 @@ var initCmd = &cobra.Command{
 
 func pickLanguage(language, location string) {
 	language = strings.ToLower(language)
+	var err error = nil
 	switch language {
 	case "python":
 		template.RunCommand = "python3 ./ast_parser/ast_parser.py"
-		err := parsers.BundlePython(location)
-		if err != nil {
-			Sugar.Errorf("Problem bundling the ast_parser at location: %s\nwith error: %s",location ,err)
-		}
+		err = parsers.BundlePython(location)
 	case "go":
 		template.RunCommand = "go run ./ast_parser/ast_parser.go"
-		err := parsers.BundleGo(location)
-		if err != nil {
-			Sugar.Errorf("Problem bundling the ast_parser at location: %s\nwith error: %s",location ,err)
-		}
+		err = parsers.BundleGo(location)
+	case "java":
+		template.RunCommand = "java ./ast_parser/AstParser.java"
+		err = parsers.BundleJava(location)
 	default: 
 		Sugar.Errorf("Language is not supported out of the box yet please create your own AST-parser using the specification on the github repository")
+	}
+	if err != nil {
+		Sugar.Errorf("Problem bundling the ast_parser at location: %s\nwith error: %s",location ,err)
 	}
 }
 
