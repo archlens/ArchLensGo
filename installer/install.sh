@@ -41,11 +41,13 @@ if ! curl -fsSL -o "$tmp/archlens.tar.gz" "$URL"; then
     exit 1
 fi
 
+echo "Untar gzip"
 if ! tar -xzf "$tmp/archlens.tar.gz" -C "$tmp"; then
     echo "Failed to extract the archive"
     exit 1
 fi
 
+echo "Finding binary file"
 # The binary may sit at the archive root or in a folder, so locate it
 bin=$(find "$tmp" -type f -name archlens | head -n1)
 if [ -z "$bin" ]; then
@@ -53,6 +55,7 @@ if [ -z "$bin" ]; then
     exit 1
 fi
 
+echo "chmod bin"
 chmod +x "$bin"
 if ! "$bin" --help >/dev/null 2>&1; then
     echo "The downloaded binary failed to run"
@@ -61,7 +64,11 @@ fi
 
 # Choose where to install it
 target="/usr/local/bin/archlens"
-read -r -p "Enter the path to install the binary to (default: $target): " input </dev/tty 2>/dev/null || input=""
+input=""
+if { : </dev/tty; } 2>/dev/null; then
+    printf 'Enter the path to install the binary to (default: %s): ' "$target"
+    read -r input </dev/tty
+fi
 target=${input:-$target}
 
 # A directory means "put archlens in there"
