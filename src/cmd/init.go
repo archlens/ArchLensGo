@@ -35,7 +35,7 @@ var initCmd = &cobra.Command{
 	Use:   "init [language]",
 	Short: "Initializes the project with a base archlens.json file and optionally [language] based ast_parser",
 	Long: `Initializes the project with a base archlens.json file as well as an embedded ast_parser in the specified optional [language] argument.
-	The project currently ships with python and go ast_parsers. Users can create their own parsers by using the specification that can be found in the docs folder
+	The project currently ships with python, java, and go ast_parsers. Users can create their own parsers by using the specification that can be found in the docs folder
 	on the github page. Archlens communicates with the parser using a unified json struct through IPC so it's easy to build your own. 
 	
 	The location for the archlens.json file as well as the ast_parsers can be specified using the -l flag the parser folder is always initialized next to
@@ -73,6 +73,10 @@ var initCmd = &cobra.Command{
 			return
 		}
 
+		if language != "" {
+			pickLanguage(language, filepath.Join(dir, "ast_parser"))
+		}
+
 		data, err := json.MarshalIndent(template, "", "  ")
 		if err != nil {
 			panic(err)
@@ -85,31 +89,33 @@ var initCmd = &cobra.Command{
 			return
 		}
 		fmt.Println("Wrote archlens.json to current location")
-
-		if language != "" {
-		pickLanguage(language, filepath.Join(dir, "ast_parser"))
-		}
 	},
 }
 
 func pickLanguage(language, location string) {
 	language = strings.ToLower(language)
-	var err error = nil
+	var err error
+	var path string
 	switch language {
 	case "python":
-		template.RunCommand = "python3 ./ast_parser/ast_parser.py"
+		path = filepath.Join(location, "ast_parser.py")
+		template.RunCommand = "python3" + path
 		err = parsers.BundlePython(location)
 	case "go":
-		template.RunCommand = "go run ./ast_parser/ast_parser.go"
+		path = filepath.Join(location, "ast_parser.go")
+		template.RunCommand = "go run" + path
 		err = parsers.BundleGo(location)
 	case "java":
-		template.RunCommand = "java ./ast_parser/AstParser.java"
+		path = filepath.Join(location, "AstParser.java")
+		template.RunCommand = "java" + path
 		err = parsers.BundleJava(location)
 	default: 
 		Sugar.Errorf("Language is not supported out of the box yet please create your own AST-parser using the specification on the github repository")
 	}
 	if err != nil {
 		Sugar.Errorf("Problem bundling the ast_parser at location: %s\nwith error: %s",location ,err)
+	} else {
+		Sugar.Infof("Wrote parser to %s", path)
 	}
 }
 
