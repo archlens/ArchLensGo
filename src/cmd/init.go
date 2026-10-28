@@ -13,7 +13,7 @@ import (
 )
 
 var template input.Input = input.Input{
-	Name:       "ArchLens",
+	Name:       "ProjectName",
 	RootFolder: ".",
 	RunCommand: "",
 	Github: input.Github{
