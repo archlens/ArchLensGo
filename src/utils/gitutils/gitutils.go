@@ -2,13 +2,13 @@
 package gitutils
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"errors"
 )
 
 const cachePattern = "**/.archlens/"
@@ -73,49 +73,38 @@ var cacheVariants = map[string]bool{
 func EnsureCacheIgnored(projectRoot string) (bool, error) {
 	path := filepath.Join(projectRoot, ".gitignore")
 
-	needsNewline := false
-	f, err := os.Open(path)
-	switch {
-	case err == nil:
-		scanner := bufio.NewScanner(f)
-		for scanner.Scan() {
-			if cacheVariants[strings.TrimSpace(scanner.Text())] {
-				err := f.Close()
-
-				return false, err
-			}
-		}
-		if err := scanner.Err(); err != nil {
-			_ = f.Close()
-			return false, fmt.Errorf("reading %s: %w", path, err)
-		}
-		_ = f.Close()
-
-		// Check whether the file ends with a newline so we don't glue lines together
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return false, fmt.Errorf("reading %s: %w", path, err)
-		}
-		needsNewline = len(data) > 0 && data[len(data)-1] != '\n'
-
-	default:
-		return false, fmt.Errorf("opening %s: %w", path, err)
+	// A missing file is fine: data stays empty and the file is created below
+	data, err := os.ReadFile(path)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return false, fmt.Errorf("reading %s: %w", path, err)
 	}
+
+	for _, line := range strings.Split(string(data), "\n") {
+		if cacheVariants[strings.TrimSpace(line)] {
+			return false, nil // already ignored
+		}
+	}
+
+	// Don't glue the entry onto an unterminated last line
+	needsNewline := len(data) > 0 && data[len(data)-1] != '\n'
 
 	out, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		return false, fmt.Errorf("opening %s for writing: %w", path, err)
 	}
-	defer func() {
-		_ = out.Close()
-	}()
 
 	entry := cachePattern + "\n"
 	if needsNewline {
 		entry = "\n" + entry
 	}
 	if _, err := out.WriteString(entry); err != nil {
+		_ = out.Close()
 		return false, fmt.Errorf("writing %s: %w", path, err)
+	}
+
+	// Close can report a failed flush, so surface it
+	if err := out.Close(); err != nil {
+		return false, fmt.Errorf("closing %s: %w", path, err)
 	}
 	return true, nil
 }
