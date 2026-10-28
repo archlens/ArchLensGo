@@ -26,7 +26,10 @@ var Version = "dev"
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	Sugar = utils.NewPrettySugaredLogger()
+	v, _ := rootCmd.Flags().GetBool("verbose")
+	s, _ := rootCmd.Flags().GetBool("verbose")
+
+	Sugar = utils.NewPrettySugaredLogger(v, s)
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -36,4 +39,7 @@ func Execute() {
 
 func init() {
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose output (mut-ex with silence)")
+	rootCmd.PersistentFlags().BoolP("silence", "s", false, "Enable silence output (mut-ex with verbose)")
+	rootCmd.MarkFlagsMutuallyExclusive("verbose", "silence")
 }

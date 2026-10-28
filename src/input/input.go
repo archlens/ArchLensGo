@@ -29,7 +29,7 @@ type Input struct {
 	RunCommand   string          `json:"runCommand"`
 }
 
-var logger = utils.NewPrettySugaredLogger()
+var logger = utils.Sugar
 
 func Load(path string) (*Input, error) {
 	input := &Input{}

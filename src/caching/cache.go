@@ -16,14 +16,9 @@ import (
 	"github.com/archlens/ArchLens/graph"
 	"github.com/archlens/ArchLens/parsers"
 	"github.com/archlens/ArchLens/utils"
-	"go.uber.org/zap"
 )
 
-var Sugar *zap.SugaredLogger
-
-func init() {
-	Sugar = utils.NewPrettySugaredLogger()
-}
+var Sugar = utils.Sugar
 
 type Entry struct {
 	Package      string   `json:"package"`
@@ -31,11 +26,11 @@ type Entry struct {
 }
 
 type Cache struct {
-	Commit string           `json:"commit"`
-	Fingerprint string      `json:"fingerprint"`
-	Known  []string         `json:"known"` // files parsed at the last refresh (sorted)
-	Dirty  []string         `json:"dirty"` // files that differed from Commit at the last refresh
-	Files  map[string]Entry `json:"files"`
+	Commit      string           `json:"commit"`
+	Fingerprint string           `json:"fingerprint"`
+	Known       []string         `json:"known"` // files parsed at the last refresh (sorted)
+	Dirty       []string         `json:"dirty"` // files that differed from Commit at the last refresh
+	Files       map[string]Entry `json:"files"`
 }
 
 // RefCache keeps one Cache per commit as <Dir>/<sha>.json.
@@ -174,7 +169,7 @@ func (c *Cache) Save(path string) error {
 	if err != nil {
 		return err
 	}
-	defer func(){
+	defer func() {
 		_ = os.Remove(tmp.Name())
 	}() // no-op after a successful rename
 	if _, err := tmp.Write(data); err != nil {
@@ -201,7 +196,7 @@ func (c *Cache) sameFile(files map[string]struct{}) bool {
 	if len(files) != len(c.Known) {
 		return false
 	}
-	for _, file  := range c.Known {
+	for _, file := range c.Known {
 		if _, ok := files[file]; !ok {
 			return false
 		}
