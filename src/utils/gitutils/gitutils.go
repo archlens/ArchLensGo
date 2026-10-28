@@ -98,9 +98,8 @@ func EnsureCacheIgnored(projectRoot string) (bool, error) {
 			return false, fmt.Errorf("reading %s: %w", path, err)
 		}
 		needsNewline = len(data) > 0 && data[len(data)-1] != '\n'
-	case errors.Is(err, os.ErrNotExist):
-		// will be created below
-	default:
+
+	if err != nil {
 		return false, fmt.Errorf("opening %s: %w", path, err)
 	}
 
