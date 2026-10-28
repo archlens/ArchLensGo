@@ -2,29 +2,27 @@ package cmd
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/archlens/ArchLens/input"
 	"github.com/archlens/ArchLens/parsers"
+	"github.com/archlens/ArchLens/utils/gitutils"
 	"github.com/spf13/cobra"
 )
 
-
-var template input.Input = input.Input {
-	Name: "ArchLens",	
+var template input.Input = input.Input{
+	Name:       "ArchLens",
 	RootFolder: ".",
 	RunCommand: "",
 	Github: input.Github{
-		Url: "https://github.com/archlens/ArchLens",
+		Url:    "https://github.com/archlens/ArchLens",
 		Branch: "master",
-	},	
+	},
 	SaveLocation: "./diagrams/",
-	Views: map[string]input.View {
-		"completeView": input.View{
-		},
+	Views: map[string]input.View{
+		"completeView": input.View{},
 	},
 }
 
@@ -86,7 +84,23 @@ var initCmd = &cobra.Command{
 			Sugar.Errorf("Could not write archlens.json: %s", err.Error())
 			return
 		}
-		fmt.Println("Wrote archlens.json to current location")
+		Sugar.Info("Wrote archlens.json to current location")
+
+		root, err := gitutils.FindRoot(".")
+		if err != nil {
+			Sugar.Warnf("Skipping .gitignore update: %s", err.Error())
+			return
+		}
+
+		changed, err := gitutils.EnsureCacheIgnored(root)
+		if err != nil {
+			Sugar.Warnf("Could not update .gitignore: %s", err.Error())
+			return
+		}
+
+		if changed {
+			Sugar.Info("Added .archlens/ cache folder to .gitignore")
+		}
 	},
 }
 
@@ -97,12 +111,12 @@ func pickLanguage(language, location string) {
 	completeView := template.Views["completeView"]
 
 	switch language {
-	case "python":					
+	case "python":
 		path = filepath.Join(location, "ast_parser.py")
 		template.RunCommand = "python3 " + path
-		completeView.Include = []string{"**/*.py","*.py"}
+		completeView.Include = []string{"**/*.py", "*.py"}
 		completeView.Exclude = []string{"__pycache__", "**/__pycache__/**", "**/__init__.py", "__init__.py",
-		"venv", ".venv", "env", ".env", "virtualenv", "site-packages", "**/site-packages/**"}
+			"venv", ".venv", "env", ".env", "virtualenv", "site-packages", "**/site-packages/**"}
 		err = parsers.BundlePython(location)
 	case "go":
 		path = filepath.Join(location, "ast_parser.go")
@@ -115,15 +129,15 @@ func pickLanguage(language, location string) {
 		template.RunCommand = "java " + path
 		completeView.Include = []string{"**/*.java", "*.java"}
 		completeView.Exclude = []string{"target", "build", "out", "bin", "classes",
-		".gradle", ".mvn", "generated", "generated-sources", "**/generated/**",
-		"**/generated-sources/**", "**/build/generated/**", "package-info.java", "**/package-info.java",
-		"module-info.java", "**/module-info.java"}
+			".gradle", ".mvn", "generated", "generated-sources", "**/generated/**",
+			"**/generated-sources/**", "**/build/generated/**", "package-info.java", "**/package-info.java",
+			"module-info.java", "**/module-info.java"}
 		err = parsers.BundleJava(location)
-	default: 
+	default:
 		Sugar.Errorf("Language is not supported out of the box yet please create your own AST-parser using the specification on the github repository")
 	}
 	if err != nil {
-		Sugar.Errorf("Problem bundling the ast_parser at location: %s\nwith error: %s",location ,err)
+		Sugar.Errorf("Problem bundling the ast_parser at location: %s\nwith error: %s", location, err)
 	} else {
 		Sugar.Infof("Wrote parser to %s", path)
 	}
