@@ -4,7 +4,6 @@ package gitutils
 import (
 	"bufio"
 	"bytes"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -82,7 +81,7 @@ func EnsureCacheIgnored(projectRoot string) (bool, error) {
 		for scanner.Scan() {
 			if cacheVariants[strings.TrimSpace(scanner.Text())] {
 				err := f.Close()
-				
+
 				return false, err
 			}
 		}
@@ -99,7 +98,7 @@ func EnsureCacheIgnored(projectRoot string) (bool, error) {
 		}
 		needsNewline = len(data) > 0 && data[len(data)-1] != '\n'
 
-	if err != nil {
+	default:
 		return false, fmt.Errorf("opening %s: %w", path, err)
 	}
 
@@ -107,9 +106,9 @@ func EnsureCacheIgnored(projectRoot string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("opening %s for writing: %w", path, err)
 	}
-	defer func(){
+	defer func() {
 		_ = out.Close()
-		}()
+	}()
 
 	entry := cachePattern + "\n"
 	if needsNewline {
