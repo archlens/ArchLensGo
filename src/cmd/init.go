@@ -24,8 +24,6 @@ var template input.Input = input.Input {
 	SaveLocation: "./diagrams/",
 	Views: map[string]input.View {
 		"completeView": input.View{
-			Include: []string{"**/*.*","*.*"},
-			Exclude: []string{"go.sum","go.mod"},
 		},
 	},
 }
@@ -96,18 +94,30 @@ func pickLanguage(language, location string) {
 	language = strings.ToLower(language)
 	var err error
 	var path string
+	completeView := template.Views["completeView"]
+
 	switch language {
-	case "python":
+	case "python":					
 		path = filepath.Join(location, "ast_parser.py")
-		template.RunCommand = "python3" + path
+		template.RunCommand = "python3 " + path
+		completeView.Include = []string{"**/*.py","*.py"}
+		completeView.Exclude = []string{"__pycache__", "**/__pycache__/**", "**/__init__.py", "__init__.py",
+		"venv", ".venv", "env", ".env", "virtualenv", "site-packages", "**/site-packages/**"}
 		err = parsers.BundlePython(location)
 	case "go":
 		path = filepath.Join(location, "ast_parser.go")
-		template.RunCommand = "go run" + path
+		template.RunCommand = "go run " + path
+		completeView.Include = []string{"**/*.go", "*.go"}
+		completeView.Exclude = []string{"vendor", "**/vendor/**", "testdata", "**/testdata/**", "*.pb.go", "*.pb.gw.go", "*_gen.go", "*.gen.go", "mock_*.go", "*_mock.go", "go.mod", "go.sum"}
 		err = parsers.BundleGo(location)
 	case "java":
 		path = filepath.Join(location, "AstParser.java")
-		template.RunCommand = "java" + path
+		template.RunCommand = "java " + path
+		completeView.Include = []string{"**/*.java", "*.java"}
+		completeView.Exclude = []string{"target", "build", "out", "bin", "classes",
+		".gradle", ".mvn", "generated", "generated-sources", "**/generated/**",
+		"**/generated-sources/**", "**/build/generated/**", "package-info.java", "**/package-info.java",
+		"module-info.java", "**/module-info.java"}
 		err = parsers.BundleJava(location)
 	default: 
 		Sugar.Errorf("Language is not supported out of the box yet please create your own AST-parser using the specification on the github repository")
