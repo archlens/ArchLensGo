@@ -81,15 +81,16 @@ func EnsureCacheIgnored(projectRoot string) (bool, error) {
 		scanner := bufio.NewScanner(f)
 		for scanner.Scan() {
 			if cacheVariants[strings.TrimSpace(scanner.Text())] {
-				f.Close()
-				return false, nil // already ignored
+				err := f.Close()
+				
+				return false, err
 			}
 		}
 		if err := scanner.Err(); err != nil {
-			f.Close()
+			_ = f.Close()
 			return false, fmt.Errorf("reading %s: %w", path, err)
 		}
-		f.Close()
+		_ = f.Close()
 
 		// Check whether the file ends with a newline so we don't glue lines together
 		data, err := os.ReadFile(path)
@@ -107,7 +108,9 @@ func EnsureCacheIgnored(projectRoot string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("opening %s for writing: %w", path, err)
 	}
-	defer out.Close()
+	defer func(){
+		_ = out.Close()
+		}()
 
 	entry := cachePattern + "\n"
 	if needsNewline {
