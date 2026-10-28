@@ -168,6 +168,6 @@ func graphsAtRef(repoDir, prefix, ref string, cfg *input.Input, rc *caching.RefC
 func init() {
 	rootCmd.AddCommand(renderDiffCmd)
 	renderDiffCmd.Flags().StringP("config", "c", "archlens.json", "Path to the archlens.json configuration file")
-	renderDiffCmd.Flags().Bool("markdown", false, "Export diagrams in markdown files")
+	renderDiffCmd.Flags().BoolP("markdown", "m",false, "Export diagrams in markdown files")
 	renderDiffCmd.Flags().BoolP("no-cache", "n", false, "Runs the renderDiff without cache files thus allowing for full parsing")
 }

@@ -86,5 +86,5 @@ to quickly create a Cobra application.`,
 func init() {
 	rootCmd.AddCommand(renderCmd)
 	renderCmd.Flags().BoolP("parse-full", "p", false, "A flag to fully parse any project again even if cache is present")
-	renderCmd.Flags().Bool("markdown", false, "Export diagrams in markdown files")
+	renderCmd.Flags().BoolP("markdown", "m", false, "Export diagrams in markdown files")
 }
