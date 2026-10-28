@@ -22,7 +22,10 @@ var template input.Input = input.Input{
 	},
 	SaveLocation: "./diagrams/",
 	Views: map[string]input.View{
-		"completeView": input.View{},
+		"completeView": input.View{
+			Include: []string{},
+			Exclude: []string{},
+		},
 	},
 }
 
